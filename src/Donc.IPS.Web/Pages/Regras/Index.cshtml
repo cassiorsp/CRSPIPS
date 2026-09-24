@@ -1,0 +1,61 @@
+@page
+@model Donc.IPS.Web.Pages.Regras.IndexModel
+@{
+    ViewData["Title"] = T["Regras de detecção"];
+}
+<div class="row g-3">
+    <div class="col-xl-9">
+        <div class="card cartao">
+            <div class="card-header d-flex align-items-center">
+                <span>@T["Regras"]</span>
+                <a asp-page="/Regras/Editar" class="btn btn-sm btn-primary ms-auto"><i class="bi bi-plus-lg"></i> @T["Nova regra"]</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th>@T["Regra"]</th><th>@T["Fonte"]</th><th>@T["Critério"]</th><th>@T["Gatilho"]</th><th>@T["Ativa"]</th><th class="text-end">@T["Ações"]</th></tr></thead>
+                    <tbody>
+                    @foreach (var regra in Model.Regras)
+                    {
+                        <tr class="@(regra.Ativa ? "" : "text-body-secondary")">
+                            <td>
+                                <div class="fw-semibold">@regra.Nome</div>
+                                @if (!string.IsNullOrEmpty(regra.Descricao))
+                                {
+                                    <div class="small text-body-secondary">@T[regra.Descricao]</div>
+                                }
+                                <code class="small text-break d-block mt-1">@regra.Padrao</code>
+                            </td>
+                            <td class="text-nowrap">@T[Exibicao.Rotulo(regra.Fonte)]</td>
+                            <td class="small">@T[Exibicao.Rotulo(regra.Criterio)]</td>
+                            <td class="text-nowrap">@T["{0} em {1}", regra.LimiteOcorrencias, Exibicao.Duracao(regra.Janela)]</td>
+                            <td>
+                                <form method="post" asp-page-handler="Alternar" asp-route-id="@regra.Id">
+                                    <div class="form-check form-switch m-0">
+                                        <input class="form-check-input" type="checkbox" role="switch" checked="@regra.Ativa" data-enviar-ao-mudar aria-label="@T["Ativa"]" />
+                                    </div>
+                                </form>
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <a asp-page="/Regras/Editar" asp-route-id="@regra.Id" class="btn btn-sm btn-outline-secondary" title="@T["Editar"]"><i class="bi bi-pencil"></i></a>
+                                <form method="post" asp-page-handler="Excluir" asp-route-id="@regra.Id" class="d-inline" data-confirmar="@T["Excluir a regra {0}?", regra.Nome]">
+                                    <button class="btn btn-sm btn-outline-danger" type="submit" title="@T["Excluir"]"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3">
+        <div class="card cartao">
+            <div class="card-header"><i class="bi bi-info-circle me-1"></i>@T["Como funciona"]</div>
+            <div class="card-body small">
+                <p>@T["Cada regra observa uma fonte e conta as ocorrências de cada IP dentro de uma janela deslizante. Ao atingir o limite, o IP é bloqueado."]</p>
+                <p>@T["O tempo de bloqueio segue a punição progressiva definida em Configurações: cada reincidência sobe um nível."]</p>
+                <p class="mb-0">@T["IPs da lista branca, do próprio servidor e usados por administradores do painel nunca são bloqueados."]</p>
+            </div>
+        </div>
+    </div>
+</div>

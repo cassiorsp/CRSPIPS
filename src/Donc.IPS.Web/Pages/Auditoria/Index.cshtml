@@ -1,0 +1,38 @@
+@page
+@model Donc.IPS.Web.Pages.Auditoria.IndexModel
+@{
+    ViewData["Title"] = T["Auditoria"];
+}
+<div class="card cartao">
+    <div class="card-body border-bottom">
+        <form method="get" class="d-flex gap-2" style="max-width: 520px">
+            <input class="form-control" name="Busca" value="@Model.Busca" placeholder="@T["Usuário, ação, IP..."]" aria-label="@T["Buscar"]" />
+            <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+        </form>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead><tr><th>@T["Quando"]</th><th>@T["Usuário"]</th><th>@T["Origem"]</th><th>@T["Ação"]</th><th>@T["Alvo"]</th><th>@T["Detalhe"]</th></tr></thead>
+            <tbody>
+            @foreach (var registro in Model.Resultado.Itens)
+            {
+                <tr>
+                    <td class="small text-nowrap">@Exibicao.DataHora(registro.OcorridoEm)</td>
+                    <td>@registro.Usuario</td>
+                    <td class="small fonte-mono">@registro.IpOrigem</td>
+                    <td>@T[registro.Acao]</td>
+                    <td class="fonte-mono small">@registro.Alvo</td>
+                    <td class="small text-break">@registro.Detalhe</td>
+                </tr>
+            }
+            @if (Model.Resultado.Itens.Count == 0)
+            {
+                <tr><td colspan="6" class="text-body-secondary">@T["Nenhum registro."]</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <div class="card-body pt-0">
+        <partial name="_Paginacao" model="(Model.Resultado.PaginaAtual, Model.Resultado.TotalPaginas, Model.Resultado.Total)" />
+    </div>
+</div>

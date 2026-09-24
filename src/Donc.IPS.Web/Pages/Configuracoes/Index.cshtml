@@ -1,0 +1,219 @@
+@page
+@model Donc.IPS.Web.Pages.Configuracoes.IndexModel
+@{
+    ViewData["Title"] = T["Configurações"];
+    var geo = Model.StatusGeo;
+    var geoIp = Model.GeoIp;
+}
+<div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+<div class="row g-3">
+    <div class="col-xl-7">
+    <form method="post" novalidate data-avisar-alteracoes="@T["Há alterações não salvas nas configurações do motor. Elas serão perdidas. Continuar?"]">
+        <div class="card cartao mb-3 @(Model.Dados.ModoSimulacao ? "border-info" : "border-danger")">
+            <div class="card-body d-flex gap-3 align-items-start">
+                <div class="form-check form-switch fs-5 m-0">
+                    <input asp-for="Dados.ModoSimulacao" class="form-check-input" role="switch" />
+                </div>
+                <div>
+                    <label asp-for="Dados.ModoSimulacao" class="fw-semibold"></label>
+                    <div class="small text-body-secondary">
+                        @T["Ligado: os bloqueios automáticos são apenas registrados (marcados como Simulado). Desligado: são aplicados no Windows Firewall. Use a simulação por alguns dias para calibrar as regras."]
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card cartao mb-3">
+            <div class="card-header">@T["Punição"]</div>
+            <div class="card-body row g-3">
+                <div class="col-md-8">
+                    <label asp-for="Dados.TemposBloqueio" class="form-label"></label>
+                    <input asp-for="Dados.TemposBloqueio" class="form-control fonte-mono" />
+                    <div class="form-text">@T["Um tempo por nível, separados por vírgula (m = minutos, h = horas, d = dias). Ex: 1h, 24h, 7d, 30d. A 1ª ocorrência usa o 1º tempo; cada reincidência sobe um nível."]</div>
+                    <span asp-validation-for="Dados.TemposBloqueio" class="text-danger small"></span>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Dados.JanelaReincidenciaDias" class="form-label"></label>
+                    <input asp-for="Dados.JanelaReincidenciaDias" class="form-control" type="number" min="1" max="365" />
+                    <div class="form-text">@T["Bloqueios anteriores dentro deste período contam como reincidência."]</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card cartao mb-3">
+            <div class="card-header">@T["Fontes monitoradas"]</div>
+            <div class="card-body">
+                <div class="row g-2 align-items-center mb-3">
+                    <div class="col-md-5">
+                        <div class="form-check form-switch">
+                            <input asp-for="Dados.MonitorarLogIis" class="form-check-input" role="switch" />
+                            <label asp-for="Dados.MonitorarLogIis" class="form-check-label"></label>
+                        </div>
+                    </div>
+                    <div class="col-md-7"><input asp-for="Dados.CaminhoLogIis" class="form-control form-control-sm fonte-mono" aria-label="@T["Pasta de logs do IIS"]" /></div>
+                </div>
+                <div class="row g-2 align-items-center mb-3">
+                    <div class="col-md-5">
+                        <div class="form-check form-switch">
+                            <input asp-for="Dados.MonitorarHttpErr" class="form-check-input" role="switch" />
+                            <label asp-for="Dados.MonitorarHttpErr" class="form-check-label"></label>
+                        </div>
+                    </div>
+                    <div class="col-md-7"><input asp-for="Dados.CaminhoHttpErr" class="form-control form-control-sm fonte-mono" aria-label="@T["Pasta do HTTPERR"]" /></div>
+                </div>
+                <div class="form-check form-switch">
+                    <input asp-for="Dados.MonitorarEventosWindows" class="form-check-input" role="switch" />
+                    <label asp-for="Dados.MonitorarEventosWindows" class="form-check-label"></label>
+                    <div class="small text-body-secondary">@T["Eventos 4625 (Security), 140 (RdpCoreTS) e 18456 (SQL Server). Para o evento 4625 trazer o IP, a auditoria de logon com falha deve estar habilitada (padrão no Windows Server)."]</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card cartao">
+            <div class="card-header">@T["Dados"]</div>
+            <div class="card-body" style="max-width: 320px">
+                <label asp-for="Dados.RetencaoEventosDias" class="form-label"></label>
+                <input asp-for="Dados.RetencaoEventosDias" class="form-control" type="number" min="1" max="365" />
+                <div class="form-text">@T["Amostras de eventos mais antigas são apagadas. O histórico de bloqueios é mantido."]</div>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> @T["Salvar configurações do motor"]</button>
+        </div>
+    </form>
+
+        <div class="card cartao mt-4">
+            <div class="card-header"><i class="bi bi-file-earmark-text me-1"></i>@T["Leitura das fontes"]</div>
+            <div class="card-body small text-body-secondary pb-2">
+                @T["Arquivos e canais que o motor está acompanhando. Se a última leitura de uma fonte ativa não avança, ela não está sendo lida."]
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>@T["Fonte"]</th><th>@T["Arquivo ou canal"]</th><th class="text-end">@T["Posição"]</th><th>@T["Última leitura"]</th></tr></thead>
+                    <tbody>
+                    @foreach (var leitura in Model.Leituras)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@(leitura.Fonte is { } fonte ? T[Exibicao.Rotulo(fonte)] : T["Desconhecida"])</td>
+                            <td class="fonte-mono small text-break">@leitura.Origem</td>
+                            <td class="text-end fonte-mono small">@leitura.Posicao.ToString("N0")</td>
+                            <td class="small text-nowrap">@Exibicao.DataHora(leitura.AtualizadaEmUtc)</td>
+                        </tr>
+                    }
+                    @if (Model.Leituras.Count == 0)
+                    {
+                        <tr><td colspan="4" class="text-body-secondary">@T["Nenhuma fonte lida ainda. Verifique se o serviço CRSPIPS está em execução."]</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card cartao mt-4 border-danger">
+            <div class="card-header text-danger"><i class="bi bi-trash me-1"></i>@T["Manutenção: limpar histórico"]</div>
+            <div class="card-body small">
+                <p>@T["Apaga todos os eventos registrados e o histórico de bloqueios (simulados, expirados e liberados). Use ao terminar a calibração para recomeçar as estatísticas e os níveis de reincidência."]</p>
+                <p class="text-body-secondary">@T["São mantidos: usuários, regras, listas, configurações, credenciais MaxMind e a auditoria. Os logs já lidos não são lidos de novo."]</p>
+                <form method="post" asp-page-handler="LimparHistorico" data-confirmar="@T["Limpar o histórico agora? Esta ação não pode ser desfeita."]">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="manterBloqueiosAtivos" id="manterBloqueiosAtivos" value="true" checked />
+                        <label class="form-check-label" for="manterBloqueiosAtivos">@T["Manter os bloqueios ativos reais (IPs que estão bloqueados no firewall agora)"]</label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="confirmado" id="confirmadoLimpeza" value="true" required />
+                        <label class="form-check-label" for="confirmadoLimpeza">@T["Entendo que eventos e bloqueios apagados não podem ser recuperados"]</label>
+                    </div>
+                    <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> @T["Limpar histórico"]</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-5">
+        <div class="card cartao">
+            <div class="card-header"><i class="bi bi-geo-alt me-1"></i>@T["Geolocalização (MaxMind GeoLite2)"]</div>
+            <div class="card-body small">
+                <ul class="list-unstyled mb-3">
+                    <li class="mb-2">
+                        <i class="bi @(geo.CidadeEncontrada ? "bi-check-circle text-success" : "bi-x-circle text-danger")"></i>
+                        <strong>GeoLite2-City</strong> — @T["país e cidade"]
+                        <div class="fonte-mono text-break text-body-secondary">@geo.CaminhoCidade</div>
+                        @if (geo.CidadeAtualizadaEm is not null)
+                        {
+                            <div class="text-body-secondary">@T["Atualizada em"] @Exibicao.DataHora(geo.CidadeAtualizadaEm)</div>
+                        }
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi @(geo.AsnEncontrada ? "bi-check-circle text-success" : "bi-x-circle text-danger")"></i>
+                        <strong>GeoLite2-ASN</strong> — @T["provedor / datacenter"]
+                        <div class="fonte-mono text-break text-body-secondary">@geo.CaminhoAsn</div>
+                    </li>
+                    <li>
+                        <i class="bi @(geo.PaisesCsvEncontrado ? "bi-check-circle text-success" : "bi-x-circle text-danger")"></i>
+                        <strong>GeoLite2-Country CSV</strong> — @T["faixas por país (política de países no firewall)"]
+                        <div class="fonte-mono text-break text-body-secondary">@geo.CaminhoPaisesCsv</div>
+                    </li>
+                </ul>
+
+                <hr />
+                <h3 class="h6 mb-2"><i class="bi bi-cloud-download me-1"></i>@T["Download automático"]</h3>
+
+                @if (geoIp.UltimaVerificacaoEm is not null)
+                {
+                    <div class="alert @(geoIp.UltimoResultadoSucesso ? "alert-success" : "alert-danger") py-2 small">
+                        <strong>@Exibicao.DataHora(geoIp.UltimaVerificacaoEm):</strong> @T[geoIp.UltimoResultado ?? string.Empty]
+                        @if (geoIp.UltimaAtualizacaoEm is not null)
+                        {
+                            <div class="text-body-secondary">@T["Último download:"] @Exibicao.DataHora(geoIp.UltimaAtualizacaoEm)</div>
+                        }
+                    </div>
+                }
+                @if (geoIp.AtualizacaoSolicitada)
+                {
+                    <div class="alert alert-info py-2 small">
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        @T["Download pendente: o motor processa em até 15 segundos. Atualize a página para ver o resultado."]
+                    </div>
+                }
+
+                <form method="post" asp-page-handler="SalvarGeoIp" autocomplete="off">
+                    <div class="row g-2">
+                        <div class="col-md-5">
+                            <label class="form-label" for="contaId">@T["ID da conta"]</label>
+                            <input class="form-control fonte-mono" id="contaId" name="contaId" value="@geoIp.ContaId" inputmode="numeric" required placeholder="123456" />
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label" for="chaveLicenca">@T["Chave de licença"]</label>
+                            <input class="form-control fonte-mono" type="password" id="chaveLicenca" name="chaveLicenca" autocomplete="new-password"
+                                   placeholder="@(geoIp.PossuiCredenciais ? $"•••• {geoIp.FinalChave}" : "")" required="@(!geoIp.PossuiCredenciais)" />
+                            @if (geoIp.PossuiCredenciais)
+                            {
+                                <div class="form-text">@T["Deixe em branco para manter a chave atual."]</div>
+                            }
+                        </div>
+                    </div>
+                    <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="atualizacaoAutomatica" name="atualizacaoAutomatica" value="true" checked="@geoIp.AtualizacaoAutomatica" />
+                        <label class="form-check-label" for="atualizacaoAutomatica">@T["Verificar atualizações automaticamente (a cada 24 horas)"]</label>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save"></i> @T["Salvar e baixar"]</button>
+                        @if (geoIp.PossuiCredenciais)
+                        {
+                            <button type="submit" class="btn btn-outline-primary btn-sm" form="formAtualizarGeoIp"><i class="bi bi-arrow-repeat"></i> @T["Atualizar agora"]</button>
+                            <button type="submit" class="btn btn-outline-danger btn-sm" form="formRemoverGeoIp"><i class="bi bi-trash"></i> @T["Remover credenciais"]</button>
+                        }
+                    </div>
+                </form>
+                <form method="post" asp-page-handler="AtualizarGeoIp" id="formAtualizarGeoIp"></form>
+                <form method="post" asp-page-handler="RemoverGeoIp" id="formRemoverGeoIp" data-confirmar="@T["Remover as credenciais MaxMind? As bases atuais continuam funcionando, mas deixam de ser atualizadas."]"></form>
+
+                <div class="text-body-secondary mt-3">
+                    @T["Crie uma conta gratuita em maxmind.com (GeoLite2) e gere uma chave em Account > Manage License Keys. Não use a senha da conta: a chave pode ser revogada a qualquer momento e é guardada criptografada neste servidor."]
+                    <a href="https://www.maxmind.com/en/geolite2/signup" target="_blank" rel="noopener noreferrer">maxmind.com <i class="bi bi-box-arrow-up-right"></i></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

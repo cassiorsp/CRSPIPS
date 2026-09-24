@@ -1,0 +1,124 @@
+@page
+@model Donc.IPS.Web.Pages.Paises.IndexModel
+@{
+    ViewData["Title"] = T["Política de países"];
+    var selecionados = Model.Paises.ToHashSet(StringComparer.OrdinalIgnoreCase);
+    var paises = Exibicao.ListarPaises();
+}
+<form method="post">
+<div class="row g-3">
+    <div class="col-xl-7">
+        <div class="card cartao mb-3">
+            <div class="card-header">@T["Modo"]</div>
+            <div class="card-body">
+                <div class="row g-2">
+                    @foreach (var (modo, icone, descricao) in new[]
+                    {
+                        (ModoPoliticaPaises.Desativada, "bi-circle", "Nenhuma restrição por país."),
+                        (ModoPoliticaPaises.BloquearListados, "bi-x-octagon", "Bloqueia somente os países selecionados."),
+                        (ModoPoliticaPaises.PermitirSomenteListados, "bi-check2-circle", "Somente os países selecionados podem acessar.")
+                    })
+                    {
+                        <div class="col-md-4">
+                            <input type="radio" class="btn-check" name="Modo" id="modo-@modo" value="@modo" checked="@(Model.Modo == modo)" />
+                            <label class="btn btn-outline-primary w-100 h-100 text-start opcao-cartao" for="modo-@modo">
+                                <i class="bi @icone fs-5"></i>
+                                <div class="fw-semibold">@T[Exibicao.Rotulo(modo)]</div>
+                                <div class="small">@T[descricao]</div>
+                            </label>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="card cartao mb-3">
+            <div class="card-header">@T["Como aplicar"]</div>
+            <div class="card-body">
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="radio" name="Aplicacao" id="aplicacaoSuspeitos" value="@AplicacaoPoliticaPaises.ReativaSuspeitos" checked="@(Model.Aplicacao == AplicacaoPoliticaPaises.ReativaSuspeitos)" />
+                    <label class="form-check-label" for="aplicacaoSuspeitos">
+                        <strong>@T["Reativa (somente eventos suspeitos)"]</strong> <span class="badge text-bg-success">@T["Recomendado"]</span>
+                        <div class="small text-body-secondary">@T["O IP de país não permitido é bloqueado na primeira tentativa suspeita (login RDP/SQL com falha, varredura, injeção), sem esperar o limite da regra. Visitantes normais, buscadores (Google, Bing), Let's Encrypt e integrações não são afetados."]</div>
+                    </label>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="radio" name="Aplicacao" id="aplicacaoReativa" value="@AplicacaoPoliticaPaises.Reativa" checked="@(Model.Aplicacao == AplicacaoPoliticaPaises.Reativa)" />
+                    <label class="form-check-label" for="aplicacaoReativa">
+                        <strong>@T["Reativa (todo o tráfego)"]</strong>
+                        <div class="small text-body-secondary">@T["O IP é bloqueado no primeiro acesso de qualquer tipo vindo de país não permitido, inclusive visitas normais aos sites."]</div>
+                        <div class="small text-danger"><i class="bi bi-exclamation-triangle"></i> @T["Bloqueia também Googlebot, Bingbot, a validação de certificados do Let's Encrypt e integrações hospedadas fora do país (Azure, AWS)."]</div>
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="Aplicacao" id="aplicacaoFirewall" value="@AplicacaoPoliticaPaises.FirewallPorPortas" checked="@(Model.Aplicacao == AplicacaoPoliticaPaises.FirewallPorPortas)" />
+                    <label class="form-check-label" for="aplicacaoFirewall">
+                        <strong>@T["Firewall por portas"]</strong>
+                        <div class="small text-body-secondary">@T["As faixas de IP dos países são gravadas direto no Windows Firewall para as portas informadas. Bloqueia antes de qualquer tentativa (recomendado para RDP)."]</div>
+                    </label>
+                </div>
+                <div class="mt-3" style="max-width: 320px">
+                    <label class="form-label" for="Portas">@T["Portas protegidas"]</label>
+                    <input class="form-control fonte-mono" id="Portas" name="Portas" value="@Model.Portas" placeholder="3389,443" />
+                    <div class="form-text">@T["Usado apenas no modo Firewall por portas. TCP e UDP."]</div>
+                </div>
+                <div class="alert alert-warning small mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    @T["Em \"Permitir somente\" + \"Firewall por portas\", as regras de permissão de outros programas nessas portas que aceitam qualquer origem são desativadas (e reativadas ao desligar a política). Lista branca, rede local e IPs de administradores continuam liberados. O Windows Firewall precisa estar com a ação padrão de entrada = Bloquear. Teste primeiro em modo simulação."]
+                </div>
+            </div>
+        </div>
+
+        <div class="card cartao">
+            <div class="card-header">@T["Situação"]</div>
+            <div class="card-body small">
+                <div class="mb-2">
+                    @if (Model.BaseDisponivel)
+                    {
+                        <span class="badge text-bg-success"><i class="bi bi-check"></i> @T["Base GeoLite2-Country (CSV) encontrada"]</span>
+                    }
+                    else
+                    {
+                        <span class="badge text-bg-warning"><i class="bi bi-exclamation-triangle"></i> @T["Base GeoLite2-Country (CSV) não encontrada: o modo Firewall por portas não será aplicado."]</span>
+                    }
+                    @if (Model.ModoSimulacao)
+                    {
+                        <span class="badge text-bg-info"><i class="bi bi-eye"></i> @T["Modo simulação: nada é aplicado no firewall."]</span>
+                    }
+                </div>
+                <div><strong>@T["Aplicado pelo motor:"]</strong> @(Model.ResumoAplicado ?? T["Nenhuma regra de país no firewall."].Value)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-5">
+        <div class="card cartao">
+            <div class="card-header d-flex align-items-center">
+                <span>@T["Países"]</span>
+                <span class="badge text-bg-primary ms-2" data-contador-paises>@selecionados.Count</span>
+            </div>
+            <div class="card-body">
+                <input class="form-control mb-2" type="search" placeholder="@T["Filtrar países..."]" data-filtro-paises />
+                <div class="lista-paises" data-lista-paises>
+                    @foreach (var (codigo, nome) in paises.OrderByDescending(p => selecionados.Contains(p.Codigo)))
+                    {
+                        <label class="item-pais" data-nome="@nome.ToLowerInvariant() @codigo.ToLowerInvariant()">
+                            <input class="form-check-input" type="checkbox" name="Paises" value="@codigo" checked="@selecionados.Contains(codigo)" />
+                            @Exibicao.Bandeira(codigo)
+                            <span>@nome</span>
+                            <span class="text-body-secondary small ms-auto">@codigo</span>
+                        </label>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="mt-3">
+    <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> @T["Salvar política"]</button>
+</div>
+</form>
+
+@section Scripts {
+    <script src="~/js/paises.js" asp-append-version="true"></script>
+}

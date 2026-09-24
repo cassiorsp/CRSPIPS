@@ -1,0 +1,29 @@
+@model (int PaginaAtual, int TotalPaginas, int Total)
+@{
+    string Url(int pagina)
+    {
+        var parametros = Context.Request.Query
+            .Where(q => !string.Equals(q.Key, "pagina", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(q => q.Value.Select(v => $"{Uri.EscapeDataString(q.Key)}={Uri.EscapeDataString(v ?? string.Empty)}"))
+            .Append($"pagina={pagina}");
+        return $"{Context.Request.Path}?{string.Join("&", parametros)}";
+    }
+    var inicio = Math.Max(1, Model.PaginaAtual - 2);
+    var fim = Math.Min(Model.TotalPaginas, Model.PaginaAtual + 2);
+}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+    <span class="text-body-secondary small">@T["{0} registro(s)", Model.Total]</span>
+    @if (Model.TotalPaginas > 1)
+    {
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item @(Model.PaginaAtual <= 1 ? "disabled" : "")"><a class="page-link" href="@Url(Model.PaginaAtual - 1)">&laquo;</a></li>
+                @for (var pagina = inicio; pagina <= fim; pagina++)
+                {
+                    <li class="page-item @(pagina == Model.PaginaAtual ? "active" : "")"><a class="page-link" href="@Url(pagina)">@pagina</a></li>
+                }
+                <li class="page-item @(Model.PaginaAtual >= Model.TotalPaginas ? "disabled" : "")"><a class="page-link" href="@Url(Model.PaginaAtual + 1)">&raquo;</a></li>
+            </ul>
+        </nav>
+    }
+</div>

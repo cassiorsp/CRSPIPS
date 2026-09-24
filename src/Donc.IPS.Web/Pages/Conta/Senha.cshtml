@@ -1,0 +1,29 @@
+@page
+@model Donc.IPS.Web.Pages.Conta.SenhaModel
+@{
+    ViewData["Title"] = T["Alterar minha senha"];
+}
+<div class="card cartao" style="max-width: 480px">
+    <div class="card-body">
+        <form method="post" novalidate>
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+            <div class="mb-3">
+                <label asp-for="Dados.SenhaAtual" class="form-label"></label>
+                <input asp-for="Dados.SenhaAtual" class="form-control" autocomplete="current-password" />
+                <span asp-validation-for="Dados.SenhaAtual" class="text-danger small"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Dados.NovaSenha" class="form-label"></label>
+                <input asp-for="Dados.NovaSenha" class="form-control" autocomplete="new-password" />
+                <div class="form-text">@T["Mínimo de 10 caracteres, com letras e números."]</div>
+                <span asp-validation-for="Dados.NovaSenha" class="text-danger small"></span>
+            </div>
+            <div class="mb-4">
+                <label asp-for="Dados.ConfirmarSenha" class="form-label"></label>
+                <input asp-for="Dados.ConfirmarSenha" class="form-control" autocomplete="new-password" />
+                <span asp-validation-for="Dados.ConfirmarSenha" class="text-danger small"></span>
+            </div>
+            <button type="submit" class="btn btn-primary">@T["Salvar"]</button>
+        </form>
+    </div>
+</div>

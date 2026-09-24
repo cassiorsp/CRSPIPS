@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Donc.IPS.Application/Donc.IPS.Application.csproj" />
+    <Project Path="src/Donc.IPS.Domain/Donc.IPS.Domain.csproj" />
+    <Project Path="src/Donc.IPS.Infrastructure/Donc.IPS.Infrastructure.csproj" />
+    <Project Path="src/Donc.IPS.Web/Donc.IPS.Web.csproj" />
+    <Project Path="src/Donc.IPS.Worker/Donc.IPS.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Donc.IPS.Tests/Donc.IPS.Tests.csproj" />
+  </Folder>
+</Solution>

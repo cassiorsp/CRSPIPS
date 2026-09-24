@@ -1,0 +1,71 @@
+@page
+@model Donc.IPS.Web.Pages.Usuarios.IndexModel
+@{
+    ViewData["Title"] = T["Usuários"];
+}
+<div class="card cartao">
+    <div class="card-header d-flex align-items-center">
+        <span>@T["Administradores do sistema"]</span>
+        <a asp-page="/Usuarios/Novo" class="btn btn-sm btn-primary ms-auto"><i class="bi bi-person-plus"></i> @T["Novo usuário"]</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>@T["Nome"]</th><th>@T["E-mail"]</th><th>@T["Situação"]</th><th>@T["Último acesso"]</th><th>@T["Último IP"]</th><th class="text-end">@T["Ações"]</th></tr></thead>
+            <tbody>
+            @foreach (var usuario in Model.Usuarios)
+            {
+                <tr>
+                    <td>@usuario.Nome @if (usuario.Id == Model.IdLogado) {<span class="badge text-bg-light border ms-1">@T["você"]</span>}</td>
+                    <td>@usuario.Email</td>
+                    <td>
+                        @if (usuario.Ativo)
+                        {
+                            <span class="badge text-bg-success">@T["Ativo"]</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">@T["Inativo"]</span>
+                        }
+                    </td>
+                    <td class="small">@Exibicao.DataHora(usuario.UltimoAcessoEm)</td>
+                    <td class="small fonte-mono">@usuario.UltimoIp</td>
+                    <td class="text-end text-nowrap">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#modalSenha" data-id="@usuario.Id" data-ip="@usuario.Email" title="@T["Redefinir senha"]">
+                            <i class="bi bi-key"></i>
+                        </button>
+                        @if (usuario.Id != Model.IdLogado)
+                        {
+                            <form method="post" asp-page-handler="Alternar" asp-route-id="@usuario.Id" class="d-inline">
+                                <button class="btn btn-sm @(usuario.Ativo ? "btn-outline-danger" : "btn-outline-success")" type="submit" title="@(usuario.Ativo ? T["Desativar"] : T["Ativar"])">
+                                    <i class="bi @(usuario.Ativo ? "bi-person-x" : "bi-person-check")"></i>
+                                </button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="modalSenha" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="RedefinirSenha" class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5">@T["Redefinir senha"] <span class="small text-body-secondary" data-campo="ip"></span></h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@T["Fechar"]"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="id" data-campo="id" />
+                <label class="form-label" for="novaSenha">@T["Nova senha"]</label>
+                <input class="form-control" type="password" id="novaSenha" name="novaSenha" required minlength="10" autocomplete="new-password" />
+                <div class="form-text">@T["Mínimo de 10 caracteres, com letras e números."]</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T["Cancelar"]</button>
+                <button type="submit" class="btn btn-primary">@T["Salvar"]</button>
+            </div>
+        </form>
+    </div>
+</div>

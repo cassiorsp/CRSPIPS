@@ -1,0 +1,21 @@
+@page
+@model Donc.IPS.Web.Pages.Conta.EntrarModel
+@{
+    Layout = "_LayoutSimples";
+    ViewData["Title"] = T["Entrar"];
+}
+<form method="post" novalidate>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+    <input type="hidden" asp-for="RetornoUrl" />
+    <div class="mb-3">
+        <label asp-for="Entrada.Email" class="form-label"></label>
+        <input asp-for="Entrada.Email" class="form-control" autocomplete="username" autofocus />
+        <span asp-validation-for="Entrada.Email" class="text-danger small"></span>
+    </div>
+    <div class="mb-4">
+        <label asp-for="Entrada.Senha" class="form-label"></label>
+        <input asp-for="Entrada.Senha" class="form-control" autocomplete="current-password" />
+        <span asp-validation-for="Entrada.Senha" class="text-danger small"></span>
+    </div>
+    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right me-1"></i>@T["Entrar"]</button>
+</form>
