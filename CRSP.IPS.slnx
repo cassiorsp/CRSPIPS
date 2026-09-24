@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CRSP.IPS.Application/CRSP.IPS.Application.csproj" />
+    <Project Path="src/CRSP.IPS.Domain/CRSP.IPS.Domain.csproj" />
+    <Project Path="src/CRSP.IPS.Infrastructure/CRSP.IPS.Infrastructure.csproj" />
+    <Project Path="src/CRSP.IPS.Web/CRSP.IPS.Web.csproj" />
+    <Project Path="src/CRSP.IPS.Worker/CRSP.IPS.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CRSP.IPS.Tests/CRSP.IPS.Tests.csproj" />
+  </Folder>
+</Solution>

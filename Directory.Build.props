@@ -4,7 +4,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <Product>CRSPIPS</Product>
-    <Company>Donc</Company>
+    <Company>CRSP Solution</Company>
+    <Authors>CRSP Solution</Authors>
+    <Copyright>Copyright © CRSP Solution</Copyright>
     <Version>1.0.0</Version>
   </PropertyGroup>
 </Project>

@@ -1,0 +1,43 @@
+@page
+@model CRSP.IPS.Web.Pages.Conta.PrimeiroAcessoModel
+@{
+    Layout = "_LayoutSimples";
+    ViewData["Title"] = T["Primeiro acesso"];
+}
+<h2 class="h5 mb-1">@T["Primeiro acesso"]</h2>
+<p class="text-body-secondary small">@T["Crie o administrador do sistema."]</p>
+
+@if (!Model.AcessoLocal)
+{
+    <div class="alert alert-warning small">
+        <i class="bi bi-lock me-1"></i>@T["Por segurança, o primeiro administrador só pode ser criado acessando o painel no próprio servidor (localhost)."]
+    </div>
+}
+else
+{
+    <form method="post" novalidate>
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+        <div class="mb-3">
+            <label asp-for="Dados.Nome" class="form-label"></label>
+            <input asp-for="Dados.Nome" class="form-control" autofocus />
+            <span asp-validation-for="Dados.Nome" class="text-danger small"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Dados.Email" class="form-label"></label>
+            <input asp-for="Dados.Email" class="form-control" autocomplete="username" />
+            <span asp-validation-for="Dados.Email" class="text-danger small"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Dados.Senha" class="form-label"></label>
+            <input asp-for="Dados.Senha" class="form-control" autocomplete="new-password" />
+            <div class="form-text">@T["Mínimo de 10 caracteres, com letras e números."]</div>
+            <span asp-validation-for="Dados.Senha" class="text-danger small"></span>
+        </div>
+        <div class="mb-4">
+            <label asp-for="Dados.ConfirmarSenha" class="form-label"></label>
+            <input asp-for="Dados.ConfirmarSenha" class="form-control" autocomplete="new-password" />
+            <span asp-validation-for="Dados.ConfirmarSenha" class="text-danger small"></span>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">@T["Criar administrador"]</button>
+    </form>
+}
