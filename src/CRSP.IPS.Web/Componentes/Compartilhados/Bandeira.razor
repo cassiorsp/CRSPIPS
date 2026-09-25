@@ -1,0 +1,14 @@
+@* Bandeira do pais (flag-icons). Sem pais conhecido, mostra a bandeira neutra. *@
+@if (string.IsNullOrWhiteSpace(Codigo) || Codigo.Length != 2)
+{
+    <span class="fi fi-xx bandeira bandeira-vazia" title="—"></span>
+}
+else
+{
+    <span class="fi fi-@Codigo.ToLowerInvariant() bandeira" title="@Exibicao.NomePais(Codigo) (@Codigo.ToUpperInvariant())"></span>
+}
+
+@code {
+    [Parameter]
+    public string? Codigo { get; set; }
+}

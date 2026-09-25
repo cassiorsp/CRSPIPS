@@ -1,0 +1,20 @@
+@* Mensagem de retorno da ultima acao (Avisos). *@
+@implements IDisposable
+@inject Avisos Avisos
+@inject IStringLocalizer<Textos> T
+
+@if (Avisos.Atual is { } aviso)
+{
+    <div class="alert @(aviso.Sucesso ? "alert-success" : "alert-danger") alert-dismissible" role="alert">
+        <i class="bi @(aviso.Sucesso ? "bi-check-circle" : "bi-exclamation-triangle") me-2"></i>@T[aviso.Texto]
+        <button type="button" class="btn-close" aria-label="@T["Fechar"]" @onclick="Avisos.Fechar"></button>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized() => Avisos.Mudou += AoMudar;
+
+    private void AoMudar() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Avisos.Mudou -= AoMudar;
+}

@@ -12,7 +12,7 @@ src/
                            política de países, listas externas, GeoIP.
   CRSP.IPS.Infrastructure  EF Core + SQLite (WAL), Windows Firewall (COM HNetCfg.FwPolicy2), leitores W3C/HTTPERR/Event Log,
                            MaxMind GeoLite2, download de listas externas, DPAPI.
-  CRSP.IPS.Web             Painel Razor Pages + Bootstrap 5 + Chart.js. Cookie Auth. pt-BR e inglês.
+  CRSP.IPS.Web             Painel Blazor (Interactive Server) + Bootstrap 5. Cookie Auth. pt-BR e inglês.
   CRSP.IPS.Worker          Serviço do Windows "CRSPIPS" (executável CRSPIPS.Worker.exe).
 tests/
   CRSP.IPS.Tests           xUnit: unidade, integração (SQLite real, firewall falso) e renderização das telas.
@@ -28,6 +28,29 @@ Windows Firewall a cada 2 segundos e corrige as diferenças. A cada 5 minutos co
 e desfaz alterações manuais feitas no firewall.
 
 `IServicoFirewall` só é registrado no Worker (`AdicionarInfraestruturaMotor`), então o painel não tem como chamá-lo.
+
+## Painel (Blazor)
+
+- **Renderização**: as telas usam *Interactive Server* (SignalR/WebSocket), com prerender. Login, primeiro acesso e erro
+  (`Componentes/Paginas/Conta`) são renderizados no servidor sem interatividade (`[ExcludeFromInteractiveRouting]`),
+  porque precisam do `HttpContext` para gravar o cookie. Sair é um POST com token antiforgery para `/Conta/Sair`.
+- **Um escopo por operação** (`ExecutorServicos`): no Blazor Server o escopo do circuito dura a sessão inteira;
+  cada chamada aos serviços abre um escopo novo, com seu próprio `DbContext`, e recebe a identidade do usuário.
+- **Usuário no circuito** (`ContextoUsuario` + `CapturaUsuarioCircuito`): nome e IP vêm da conexão SignalR, pois o
+  `HttpContext` não é confiável dentro do circuito. A auditoria e a proteção do próprio IP usam esses dados.
+- **Mensagens** (`Avisos`): retorno das ações no topo da tela; `SucessoAposNavegar` sobrevive a uma troca de página.
+- **Tabelas sem paginação**: Bloqueios e Auditoria usam `<Virtualize>` com `ItemsProvider` (rolagem infinita, `Fatia<T>` com
+  `Pular`/`Quantidade`). Em telas a partir de 1200 px de largura, as telas de tabela usam `.pagina-cheia`/`.cartao-cheio`:
+  o cartão vai até o fim da janela e só a tabela rola. Em telas menores a página rola e a tabela tem altura fixa.
+- **Gráficos** com Chart.js (`GraficoLinha`, `GraficoRosca`, `GraficoBarras` → `wwwroot/js/graficos.js`). O componente
+  só chama o JavaScript quando a lista de dados muda; ao trocar o tema, os gráficos são redesenhados com as cores novas.
+- **Bibliotecas visuais**: Bootstrap 5 local (`wwwroot/lib`); pelo jsDelivr, Chart.js 4, Bootstrap Icons, flag-icons
+  (componente `Bandeira`) e a fonte Inter. Sem internet no navegador, o painel funciona, mas sem ícones, bandeiras e
+  gráficos. jQuery não é usado: o Blazor controla o DOM e a validação dos formulários é feita pelo `EditForm`.
+- **Dashboard**: `ServicoPainel.ObterIndicadoresAsync(PeriodoDashboard)`. As séries são contadas por hora UTC direto no
+  SQLite (`ContagemPorHora`, `substr(data, 1, 13)`) e reagrupadas por hora, dia ou semana no fuso do servidor.
+- **CSV das listas**: `ArquivoCsvListas` lê o arquivo (`;` ou `,`, aspas, comentários) e `ServicoListas.ImportarAsync`
+  valida cada linha como na inclusão manual e grava tudo com um único registro de auditoria.
 
 ## Motor
 
@@ -51,7 +74,9 @@ Fontes (IFonteEventos)           ServicoDeteccao                          Servic
 - **Punição progressiva** (`PoliticaProgressao`): cada reincidência dentro da janela sobe um nível na lista de tempos.
 - **Modo simulação**: bloqueios automáticos são registrados com `Simulado = true` e não vão para o firewall.
 - **Catálogos versionados**: `CatalogoRegrasPadrao` (versão em `Configuracao.VersaoRegrasPadrao`) e `CatalogoListasExternas`
-  (inserção por nome). Novas regras e listas entram sozinhas em bancos existentes, e as excluídas não voltam.
+  (inserção por nome). Novas regras e listas entram sozinhas em bancos existentes, e as regras excluídas não voltam.
+  Listas externas do catálogo não podem ser excluídas (só desativadas); as cadastradas pelo administrador têm
+  `Personalizada = true` e podem ser excluídas (entradas e coincidências saem em cascata).
 
 ## Trabalhadores do Worker
 
@@ -71,8 +96,7 @@ SQLite em `C:\ProgramData\CRSPIPS\crspips.db`, compartilhado entre painel e Work
 Nova migration:
 
 ```powershell
-dotnet tool restore
-dotnet ef migrations add NomeDaMigration --project src/CRSP.IPS.Infrastructure --startup-project src/CRSP.IPS.Infrastructure --output-dir Persistencia/Migracoes
+dotnet dnx dotnet-ef@10.0.12 --yes migrations add NomeDaMigration -p src/CRSP.IPS.Infrastructure -s src/CRSP.IPS.Infrastructure -o Persistencia/Migracoes
 ```
 
 As migrations são aplicadas automaticamente por quem iniciar primeiro (painel ou serviço).
@@ -84,6 +108,7 @@ As migrations são aplicadas automaticamente por quem iniciar primeiro (painel o
 - A chave MaxMind fica no banco protegida com DPAPI (escopo da máquina).
 - As chaves do cookie de login ficam em `C:\ProgramData\CRSPIPS\chaves`, protegidas com DPAPI.
 - Cabeçalhos: CSP sem script inline, `X-Frame-Options: DENY`, `nosniff`, `no-referrer`.
+  Scripts, estilos, fontes e imagens externos só do `cdn.jsdelivr.net`. O CSP padrão de frame-ancestors do Blazor é desligado porque o nosso já envia `frame-ancestors 'none'`.
 
 ## Traduções
 

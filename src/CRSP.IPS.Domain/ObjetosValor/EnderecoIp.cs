@@ -57,13 +57,6 @@ public readonly record struct EnderecoIp : IComparable<EnderecoIp>
     /// <summary>Hex de 32 caracteres. Comparacao lexicografica equivale a comparacao numerica.</summary>
     public string ObterChaveOrdenavel() => Convert.ToHexStringLower(ObterBytes16());
 
-    public static EnderecoIp DeBytes16(byte[] bytes)
-    {
-        if (bytes.Length != 16)
-            throw new ArgumentException("Esperados 16 bytes.", nameof(bytes));
-        return Criar(new IPAddress(bytes));
-    }
-
     public int CompareTo(EnderecoIp outro) =>
         string.CompareOrdinal(ObterChaveOrdenavel(), outro.ObterChaveOrdenavel());
 

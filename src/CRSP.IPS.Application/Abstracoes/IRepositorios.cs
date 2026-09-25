@@ -16,9 +16,15 @@ public interface IRepositorioBloqueios
     Task<IReadOnlyList<Bloqueio>> ListarAtivosAsync(CancellationToken ct = default);
     Task<IReadOnlyList<Bloqueio>> ListarAtivosNaFaixaAsync(string inicioChave, string fimChave, CancellationToken ct = default);
     Task<IReadOnlyList<Bloqueio>> ListarPorIpAsync(string ip, CancellationToken ct = default);
-    Task<IReadOnlyList<Bloqueio>> ListarDesdeAsync(DateTime desdeUtc, CancellationToken ct = default);
+    Task<ResumoBloqueios> ResumirDesdeAsync(DateTime desdeUtc, CancellationToken ct = default);
+    Task<IReadOnlyList<ContagemHora>> ContarPorHoraDesdeAsync(DateTime desdeUtc, CancellationToken ct = default);
+
+    /// <summary>Paises com mais bloqueios no periodo. Complemento = nome do pais gravado no bloqueio.</summary>
+    Task<IReadOnlyList<ItemRanking>> RankingPaisesDesdeAsync(DateTime desdeUtc, int quantidade, CancellationToken ct = default);
+    Task<IReadOnlyDictionary<string, int>> ContarPorIpsDesdeAsync(IReadOnlyCollection<string> ips, DateTime desdeUtc, CancellationToken ct = default);
+    Task<IReadOnlyList<Bloqueio>> ListarRecentesDesdeAsync(DateTime desdeUtc, int quantidade, CancellationToken ct = default);
     Task<int> ContarPorIpDesdeAsync(string ip, DateTime desdeUtc, CancellationToken ct = default);
-    Task<Pagina<Bloqueio>> PesquisarAsync(FiltroBloqueios filtro, CancellationToken ct = default);
+    Task<Fatia<Bloqueio>> PesquisarAsync(FiltroBloqueios filtro, CancellationToken ct = default);
     Task<IReadOnlyList<Bloqueio>> ListarSemLocalizacaoDesdeAsync(DateTime desdeUtc, int limite, CancellationToken ct = default);
 
     /// <summary>Apaga o historico de bloqueios. Com manterAtivosReais, preserva os que estao aplicados no firewall.</summary>
@@ -57,9 +63,10 @@ public interface IRepositorioConfiguracaoGeoIp
 public interface IRepositorioEventos
 {
     void AdicionarVarios(IEnumerable<EventoSeguranca> eventos);
-    Task<IReadOnlyList<EventoSeguranca>> ListarRecentesAsync(int quantidade, TipoFonte? fonte, long? aposId, CancellationToken ct = default);
+    Task<IReadOnlyList<EventoSeguranca>> ListarRecentesAsync(int quantidade, FiltroEventos filtro, long? aposId, CancellationToken ct = default);
+    Task<OpcoesFiltroEventos> ObterOpcoesFiltroAsync(CancellationToken ct = default);
     Task<IReadOnlyList<EventoSeguranca>> ListarPorIpAsync(string ip, int quantidade, CancellationToken ct = default);
-    Task<IReadOnlyList<DateTime>> ListarMomentosDesdeAsync(DateTime desdeUtc, CancellationToken ct = default);
+    Task<IReadOnlyList<ContagemHora>> ContarPorHoraDesdeAsync(DateTime desdeUtc, CancellationToken ct = default);
     Task<IReadOnlyList<ItemRanking>> RankingUrlsDesdeAsync(DateTime desdeUtc, int quantidade, CancellationToken ct = default);
 
     /// <summary>IPs com mais eventos registrados no periodo. Complemento = codigo do pais.</summary>
@@ -84,7 +91,7 @@ public interface IRepositorioUsuarios
 public interface IRepositorioAuditoria
 {
     void Adicionar(RegistroAuditoria registro);
-    Task<Pagina<RegistroAuditoria>> PesquisarAsync(string? texto, int pagina, int tamanhoPagina, CancellationToken ct = default);
+    Task<Fatia<RegistroAuditoria>> PesquisarAsync(string? texto, int pular, int quantidade, CancellationToken ct = default);
 }
 
 public interface IRepositorioPosicoesLeitura
@@ -98,7 +105,11 @@ public interface IRepositorioListasExternas
 {
     Task<IReadOnlyList<ListaExterna>> ListarAsync(CancellationToken ct = default);
     Task<ListaExterna?> ObterPorIdAsync(int id, CancellationToken ct = default);
+    Task<bool> ExisteNomeAsync(string nome, CancellationToken ct = default);
     void Adicionar(ListaExterna lista);
+
+    /// <summary>Remove a lista com suas entradas e coincidencias (cascata).</summary>
+    void Remover(ListaExterna lista);
 
     /// <summary>
     /// Identifica o estado atual das listas (ativa, ultima atualizacao). Muda sempre que o conteudo aplicavel muda;

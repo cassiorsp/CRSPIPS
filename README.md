@@ -11,7 +11,7 @@ Detecta ataques nos logs do seu servidor e bloqueia os atacantes automaticamente
 ![IIS](https://img.shields.io/badge/IIS-10-0078D4)
 ![Licença GPL v3](https://img.shields.io/badge/licen%C3%A7a-GPL%20v3-blue)
 
-Desenvolvido por **CRSP Solution**
+Desenvolvido por **crsp.dev**
 
 </div>
 
@@ -82,15 +82,16 @@ Assim o site no IIS não precisa de permissão de administrador.
 
 ## Funcionalidades
 
-- **Dashboard** com ataques das últimas 24 horas, países de origem, IPs mais agressivos e URLs mais atacadas, atualizado sozinho a cada 30 segundos.
-- **Monitor em tempo real** dos eventos suspeitos, com país, cidade, provedor e qual site foi atacado.
+- **Dashboard** com ataques, países de origem, IPs mais agressivos e URLs mais atacadas, atualizado sozinho a cada 30 segundos. Um filtro de período (**Hoje, 7, 14, 30, 90, 120, 180, 360 dias ou Tudo**) vale para todos os cards, gráficos e tabelas.
+- **Monitor em tempo real** dos eventos suspeitos, com país, cidade, provedor e qual site foi atacado. Filtra por fonte, país e status HTTP.
 - **Proteção de RDP e SQL Server** pelas falhas de login do Windows (eventos 4625, 140 e 18456).
 - **Proteção dos sites**: varreduras, páginas inexistentes, injeção SQL, XSS, path traversal, Log4Shell, busca de backups e arquivos de configuração.
 - **16 regras prontas**, fáceis de ligar, desligar e ajustar, e regras próprias com expressões regulares.
 - **Punição progressiva**: 1 hora na primeira vez, depois 24 horas, 7 dias, 30 dias.
 - **Política de países**: permitir só o Brasil no RDP, por exemplo.
-- **Listas negras**: manual e **listas públicas atualizadas todo dia** (Spamhaus DROP, DShield e outras).
+- **Listas negras**: manual e **listas públicas atualizadas todo dia** (Spamhaus DROP, DShield e outras). Você também pode cadastrar **suas próprias listas externas** (qualquer URL HTTPS).
 - **Lista branca**: IPs que nunca são bloqueados. Os IPs do servidor e dos administradores do painel já são protegidos automaticamente.
+- **Importação por CSV** na lista branca e na lista negra, com modelo pronto para baixar.
 - **Geolocalização** com MaxMind GeoLite2, baixada e atualizada automaticamente.
 - **Auditoria** de tudo que os administradores fazem.
 - Painel em **português e inglês**, com tema claro e escuro.
@@ -100,7 +101,7 @@ Assim o site no IIS não precisa de permissão de administrador.
 | Item | Detalhe |
 |---|---|
 | Sistema | Windows Server 2016 ou superior |
-| IIS | Instalado, com o **.NET 10 Hosting Bundle** |
+| IIS | Instalado, com o **.NET 10 Hosting Bundle** e o recurso **WebSocket Protocol** (o painel usa WebSocket para atualizar as telas) |
 | Firewall | Windows Firewall ligado, com a ação padrão de entrada **Bloquear** (é o padrão do Windows) |
 | Logs do IIS | Formato W3C (o padrão) |
 | Internet (saída HTTPS) | `download.maxmind.com`, `www.spamhaus.org`, `feeds.dshield.org` |
@@ -130,9 +131,11 @@ $AppCmd   = "$env:windir\System32\inetsrv\appcmd.exe"
 
 Baixe e instale o **ASP.NET Core Runtime 10 — Windows Hosting Bundle** em
 [dotnet.microsoft.com/download/dotnet/10.0](https://dotnet.microsoft.com/download/dotnet/10.0).
-Ele instala o runtime usado pelo painel e pelo serviço. Depois reinicie o IIS:
+Ele instala o runtime usado pelo painel e pelo serviço. Ative também o WebSocket do IIS (o painel é feito em Blazor
+e usa uma conexão WebSocket; sem ele as telas ficam lentas) e reinicie o IIS:
 
 ```powershell
+Install-WindowsFeature Web-WebSockets
 iisreset
 ```
 
@@ -301,6 +304,23 @@ O CRSPIPS tem dois tipos de lista negra:
 Em **Listas → Lista negra**, você cadastra IPs ou redes que devem ficar bloqueados **para sempre**.
 Aceita IP (`203.0.113.7`), rede (`203.0.113.0/24`) ou intervalo (`203.0.113.1-203.0.113.50`).
 
+### Importar várias faixas por CSV (lista negra e lista branca)
+
+Na tela da lista, clique em **Baixar modelo CSV**, preencha e envie em **Importar arquivo CSV**. O formato é:
+
+```csv
+faixa;descricao
+203.0.113.7;IP único
+198.51.100.0/24;Rede em CIDR
+192.0.2.10-192.0.2.50;Intervalo de endereços
+2001:db8::/32;Faixa IPv6
+```
+
+- A descrição é opcional. O separador pode ser ponto e vírgula (padrão do Excel em português) ou vírgula.
+- Até 5.000 linhas e 1 MB por arquivo. Linhas repetidas ou já cadastradas são ignoradas.
+- Cada linha passa pelas mesmas regras da inclusão manual. As linhas com erro aparecem na tela com o número da linha,
+  e as demais são gravadas.
+
 ### Listas externas (atualizadas todo dia)
 
 Em **Listas → Listas externas** ficam as listas públicas de IPs maliciosos. O serviço baixa cada uma a cada 24 horas.
@@ -332,6 +352,10 @@ Cada lista tem três modos:
 - Nada que esteja na lista branca, nas redes internas ou nos IPs do servidor é bloqueado, mesmo que venha na lista.
 - Se um download falhar ou vier corrompido, a versão anterior continua valendo.
 - As listas externas ficam em regras próprias no firewall (`CRSPIPS_ListaExterna_*`), separadas dos bloqueios do motor.
+
+**Adicionar uma lista própria:** em **Listas → Listas externas → Nova lista**, informe o nome, uma ou mais URLs HTTPS
+e o formato (texto com um IP ou faixa por linha, Spamhaus JSON ou DShield). Comece em **Avaliação**. As listas
+cadastradas por você podem ser excluídas; as do catálogo só podem ser desativadas.
 
 > Em **modo simulação**, as listas são baixadas, mas nada vai para o firewall.
 
@@ -463,7 +487,7 @@ sc.exe start CRSPIPS
 | Erro 500 ao salvar no painel | Pool sem permissão na pasta de dados | Refaça o passo 7 (`icacls`) e recicle o pool |
 | Tela de primeiro acesso diz que só aceita localhost | Acesso não veio de `127.0.0.1` | Use o endereço `http://127.0.0.1:8085` **no próprio servidor** (passo 9) |
 | Nada aparece no Monitor | Nenhum log sendo lido | **Configurações → Leitura das fontes** e confira a pasta de logs do IIS |
-| Sem bandeiras e cidades | Bases GeoIP ausentes | **Configurações → Geolocalização**, confira o resultado do download |
+| Sem país, cidade e provedor | Bases GeoIP ausentes | **Configurações → Geolocalização**, confira o resultado do download |
 | `Could not load file or assembly ...` | Publicação misturada com arquivos antigos | Pare serviço e pool, apague a pasta publicada e publique de novo |
 | Lista externa com erro | Servidor sem acesso à internet | Libere HTTPS de saída para `www.spamhaus.org` e `feeds.dshield.org` |
 
@@ -494,7 +518,7 @@ Remove-Item $PastaSvc, $PastaWeb -Recurse -Force
 
 ## Créditos e licença
 
-CRSPIPS é desenvolvido e mantido pela **CRSP Solution**.
+CRSPIPS é desenvolvido e mantido por **crsp.dev**.
 
 Inspirado em projetos como IPBan, fail2ban, RdpGuard e FireMon. Geolocalização por MaxMind GeoLite2;
 listas públicas de Spamhaus, SANS DShield, IPsum, CINS Army e blocklist.de, cada uma com os próprios termos de uso.

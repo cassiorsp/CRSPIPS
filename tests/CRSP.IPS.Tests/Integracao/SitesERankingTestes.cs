@@ -111,9 +111,9 @@ public class SitesERankingTestes
 
         var indicadores = await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoPainel>().ObterIndicadoresAsync());
 
-        Assert.Equal("203.0.113.7", indicadores.TopIps[0].Rotulo);
-        Assert.Equal(20, indicadores.TopIps[0].Quantidade);
-        Assert.StartsWith("1|", indicadores.TopIps[0].Complemento);
+        Assert.Equal("203.0.113.7", indicadores.TopIps[0].Ip);
+        Assert.Equal(20, indicadores.TopIps[0].Eventos);
+        Assert.Equal(1, indicadores.TopIps[0].Bloqueios);
     }
 
     private static List<EventoDetectado> Gerar404(string ip, int quantidade, DateTime inicio) =>

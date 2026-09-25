@@ -10,6 +10,6 @@ public sealed class ServicoAuditoria(IRepositorioAuditoria auditoria, IContextoU
     public void Registrar(string acao, string alvo, string? detalhe = null) =>
         auditoria.Adicionar(RegistroAuditoria.Criar(relogio.GetUtcNow().UtcDateTime, contexto.Nome, contexto.Ip, acao, alvo, detalhe));
 
-    public Task<Pagina<RegistroAuditoria>> PesquisarAsync(string? texto, int pagina, CancellationToken ct = default) =>
-        auditoria.PesquisarAsync(texto, Math.Max(1, pagina), 50, ct);
+    public Task<Fatia<RegistroAuditoria>> PesquisarAsync(string? texto, int pular = 0, int quantidade = 50, CancellationToken ct = default) =>
+        auditoria.PesquisarAsync(texto, Math.Max(0, pular), Math.Clamp(quantidade, 1, 200), ct);
 }

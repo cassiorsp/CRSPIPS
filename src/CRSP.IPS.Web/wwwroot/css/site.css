@@ -11,6 +11,8 @@
     --crs-info: #3b82f6;
     --crs-neutro: #64748b;
     --crs-largura-lateral: 240px;
+    /* Fonte Inter (jsDelivr); sem internet, cai para a fonte do sistema. */
+    --bs-body-font-family: "Inter Variable", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 [data-bs-theme="dark"] {
@@ -201,6 +203,16 @@ body {
 .kpi-info .kpi-icone { background: rgba(59, 130, 246, .12); color: var(--crs-info); }
 .kpi-neutro .kpi-icone { background: rgba(100, 116, 139, .14); color: var(--crs-neutro); }
 
+.kpi-periodo {
+    font-size: .75rem;
+    opacity: .85;
+}
+
+.filtro-periodo .btn {
+    min-width: 3.2rem;
+}
+
+/* Graficos Chart.js: o canvas ocupa a altura do container. */
 .grafico {
     position: relative;
     height: 280px;
@@ -226,18 +238,21 @@ body {
     margin: 0;
 }
 
-.fi {
+/* Bandeiras (flag-icons). */
+.bandeira {
     border-radius: 2px;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, .08);
+    vertical-align: -.1em;
 }
 
 .bandeira-vazia {
-    background: var(--crs-borda);
+    background-color: var(--crs-borda);
 }
 
-.bandeira-grande .fi {
+.bandeira-grande .bandeira {
     font-size: 3rem;
     line-height: 1;
+    border-radius: 4px;
 }
 
 .ip-grande {
@@ -245,13 +260,52 @@ body {
     font-weight: 700;
 }
 
-.tabela-monitor {
-    max-height: calc(100vh - 260px);
+/* Tabelas longas: rolagem interna com cabecalho fixo. */
+.tabela-rolagem {
+    max-height: 480px;
     overflow-y: auto;
 }
 
-.tabela-monitor thead th {
+.tabela-rolagem-baixa {
+    max-height: 360px;
+}
+
+.tabela-rolagem thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     background: var(--crs-cartao);
+}
+
+.celula-motivo {
+    max-width: 220px;
+}
+
+.coluna-selecao {
+    width: 32px;
+}
+
+.filtro-monitor {
+    width: auto;
+    max-width: 14rem;
+}
+
+.campo-busca {
+    max-width: 520px;
+}
+
+.campo-portas {
+    max-width: 320px;
+}
+
+.cartao-formulario {
+    max-width: 560px;
+}
+
+.lista-erros-importacao {
+    max-height: 180px;
+    overflow-y: auto;
+    padding-left: 1.1rem;
 }
 
 .linha-nova {
@@ -361,5 +415,81 @@ body {
 
     .topo {
         padding: .6rem 1rem;
+    }
+}
+
+/*
+ * Telas de tabela (Bloqueios, Monitor, Auditoria, Regras, Listas, Usuarios, Detalhe do IP): em telas grandes
+ * (Full HD), o cartao da tabela ocupa ate o fim da janela e a tabela rola dentro dele, sem paginacao.
+ * Estrutura: .pagina-cheia > (.cartao-cheio | .linha-cheia > .col > .cartao-cheio) > .tabela-rolagem
+ * Em telas menores, a pagina rola normalmente e a tabela fica com a altura padrao de .tabela-rolagem.
+ */
+@media (min-width: 1200px) and (min-height: 640px) {
+    .conteudo {
+        height: 100vh;
+    }
+
+    .principal {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .principal > * {
+        flex-shrink: 0;
+    }
+
+    .principal > .pagina-cheia {
+        flex: 1 1 0;
+        min-height: 420px;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .pagina-cheia > * {
+        flex-shrink: 0;
+        margin-bottom: 0 !important;
+    }
+
+    .pagina-cheia > .cartao-cheio,
+    .pagina-cheia > .linha-cheia {
+        flex: 1 1 0;
+        min-height: 0;
+    }
+
+    .linha-cheia > [class*="col"] {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .linha-cheia > [class*="col"] > .cartao-cheio {
+        flex: 1 1 0;
+        min-height: 0;
+    }
+
+    .cartao-cheio {
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* O Bootstrap da .card-body flex 1: aqui so a tabela cresce. */
+    .cartao-cheio > * {
+        flex: 0 0 auto;
+    }
+
+    .cartao-cheio > .tabela-rolagem {
+        flex: 1 1 0;
+        min-height: 0;
+        max-height: none;
+    }
+
+    /* Abas (Detalhe do IP): o cartao da aba ocupa o espaco abaixo das abas. */
+    .cartao-cheio > .cartao-cheio {
+        flex: 1 1 0;
+        min-height: 0;
     }
 }

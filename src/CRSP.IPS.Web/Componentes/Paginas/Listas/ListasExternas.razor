@@ -1,0 +1,321 @@
+@page "/Listas/Externas"
+@inject IServicoGeolocalizacao Geolocalizacao
+@using CRSP.IPS.Application.Abstracoes
+@using CRSP.IPS.Domain.ObjetosValor
+
+<Titulo Texto="@T["Listas"]" />
+
+<AbasListas Atual="Externas" />
+
+@if (_modoSimulacao)
+{
+    <div class="alert alert-info small">
+        <i class="bi bi-eye me-1"></i>@T["Modo simulação: as listas são baixadas e as coincidências são registradas, mas nada é aplicado no firewall."]
+    </div>
+}
+
+<div class="d-flex mb-3">
+    <button class="btn btn-sm btn-primary ms-auto" type="button" @onclick="AbrirNovaLista"><i class="bi bi-plus-lg"></i> @T["Nova lista"]</button>
+</div>
+
+<div class="row g-3 mb-4">
+    @foreach (var lista in _listas)
+    {
+        <div class="col-xl-6" @key="lista.Id">
+            <div class="card cartao h-100 @(lista.EstaEmUso ? "" : "opacity-75")">
+                <div class="card-body">
+                    <div class="d-flex align-items-start gap-2">
+                        <div>
+                            <h2 class="h6 mb-1">
+                                @lista.Nome
+                                @if (lista.Personalizada)
+                                {
+                                    <span class="badge text-bg-light border ms-1">@T["Personalizada"]</span>
+                                }
+                            </h2>
+                            <div class="small text-body-secondary">@T[lista.Descricao ?? string.Empty]</div>
+                        </div>
+                        <div class="ms-auto text-nowrap">
+                            @switch (lista.Modo)
+                            {
+                                case ModoListaExterna.Desativada:
+                                    <span class="badge text-bg-secondary">@T["Desativada"]</span>
+                                    break;
+                                case ModoListaExterna.Avaliacao:
+                                    <span class="badge text-bg-warning">@T["Em avaliação"]</span>
+                                    break;
+                                default:
+                                    if (_modoSimulacao)
+                                    {
+                                        <span class="badge text-bg-info">@T["Ativa (simulação)"]</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge text-bg-success">@T["Aplicada no firewall"]</span>
+                                    }
+                                    break;
+                            }
+                        </div>
+                    </div>
+
+                    <dl class="lista-dados small mt-3 mb-3">
+                        <dt>@T["Faixas"]</dt>
+                        <dd>
+                            @lista.Quantidade.ToString("N0")
+                            @if (lista.Removidas > 0)
+                            {
+                                <span class="text-warning-emphasis">(@T["{0} removidas pela proteção", lista.Removidas.ToString("N0")])</span>
+                            }
+                        </dd>
+                        <dt>@T["Última atualização"]</dt>
+                        <dd>@Exibicao.DataHora(lista.UltimaAtualizacaoEm)</dd>
+                        @if (lista.EstaEmUso)
+                        {
+                            <dt>@T["Próxima verificação"]</dt>
+                            <dd>@(lista.AtualizacaoSolicitada || lista.UltimaVerificacaoEm is null ? T["em até 1 minuto"] : Exibicao.DataHora(lista.ProximaAtualizacaoEm))</dd>
+                        }
+                        <dt>@T["Formato"]</dt>
+                        <dd>@T[Exibicao.Rotulo(lista.Formato)] · @T["a cada {0} h", lista.IntervaloHoras]</dd>
+                        <dt>@T["Fonte"]</dt>
+                        <dd class="text-break">
+                            @foreach (var url in lista.ObterUrls())
+                            {
+                                <div class="fonte-mono">@url</div>
+                            }
+                        </dd>
+                        @if (!string.IsNullOrEmpty(lista.UltimoErro))
+                        {
+                            <dt class="text-danger">@T["Último erro"]</dt>
+                            <dd class="text-danger">@Exibicao.DataHora(lista.UltimaVerificacaoEm): @T[lista.UltimoErro]</dd>
+                        }
+                    </dl>
+
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <div class="btn-group btn-group-sm" role="group">
+                            @foreach (var modo in Enum.GetValues<ModoListaExterna>())
+                            {
+                                <button type="button" class="btn @(lista.Modo == modo ? "btn-primary" : "btn-outline-primary")" disabled="@(lista.Modo == modo || _processando)"
+                                        @onclick="() => DefinirModoAsync(lista.Id, modo)">@T[Exibicao.Rotulo(modo)]</button>
+                            }
+                        </div>
+                        @if (lista.EstaEmUso)
+                        {
+                            <button class="btn btn-sm btn-outline-primary" type="button" disabled="@_processando" @onclick="() => AtualizarAsync(lista.Id)"><i class="bi bi-arrow-repeat"></i> @T["Atualizar agora"]</button>
+                        }
+                        @if (lista.Personalizada)
+                        {
+                            <button class="btn btn-sm btn-outline-danger ms-auto" type="button" disabled="@_processando" @onclick="() => ExcluirAsync(lista)"><i class="bi bi-trash"></i> @T["Excluir"]</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="card cartao">
+    <div class="card-header">
+        <i class="bi bi-intersect me-1"></i>@T["Coincidências com o tráfego real"]
+    </div>
+    <div class="card-body small text-body-secondary pb-2">
+        @T["IPs de alguma lista (em avaliação ou ativa) que chegaram ao servidor. Use para avaliar uma lista antes de ativá-la: varreduras e ataques confirmam a lista; acessos normais de operadoras brasileiras ou de parceiros indicam risco de bloquear usuários legítimos."]
+    </div>
+    <div class="table-responsive tabela-rolagem">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+            <tr><th>@T["Lista"]</th><th>@T["IP"]</th><th class="text-end">@T["Acessos"]</th><th>@T["Último acesso"]</th><th>@T["Fonte"]</th><th>@T["URL"]</th><th>@T["Requisição"]</th><th>@T["Status"]</th><th>@T["Bloqueio"]</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var coincidencia in _coincidencias)
+            {
+                var situacao = SituacaoBloqueio(coincidencia);
+                var local = Localizar(coincidencia.Ip);
+                <tr>
+                    <td class="small text-nowrap">@NomeLista(coincidencia.ListaExternaId)</td>
+                    <td>
+                        <Bandeira Codigo="@local?.PaisCodigo" />
+                        <a href="/Bloqueios/Detalhe?ip=@Uri.EscapeDataString(coincidencia.Ip)" class="fonte-mono">@coincidencia.Ip</a>
+                        @if (Exibicao.DescreverLocal(local, incluirPais: false) is { } descricao)
+                        {
+                            <div class="small text-body-secondary text-nowrap">@descricao</div>
+                        }
+                    </td>
+                    <td class="text-end">@coincidencia.Quantidade.ToString("N0")</td>
+                    <td class="small text-nowrap">@Exibicao.DataHora(coincidencia.UltimaEm)</td>
+                    <td class="small text-nowrap">@T[Exibicao.Rotulo(coincidencia.UltimaFonte)]</td>
+                    <td class="small text-nowrap">@(coincidencia.UltimoSite ?? "—")</td>
+                    <td class="small fonte-mono text-break">@coincidencia.UltimaUrl</td>
+                    <td>@coincidencia.UltimoCodigoStatus</td>
+                    <td><span class="badge @situacao.Classe text-nowrap">@T[situacao.Texto]</span></td>
+                </tr>
+            }
+            @if (_coincidencias.Count == 0)
+            {
+                <tr><td colspan="9" class="text-body-secondary">@T["Nenhuma coincidência registrada."]</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<Modal Aberto="_novaListaAberta" AbertoChanged="v => _novaListaAberta = v" Classe="modal-lg">
+    <Cabecalho><i class="bi bi-cloud-plus me-2"></i>@T["Nova lista externa"]</Cabecalho>
+    <ChildContent>
+        <div class="modal-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="nomeLista">@T["Nome"]</label>
+                    <input class="form-control" id="nomeLista" maxlength="100" @bind="_nova.Nome" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="formatoLista">@T["Formato"]</label>
+                    <select class="form-select" id="formatoLista" @bind="_nova.Formato">
+                        @foreach (var formato in Enum.GetValues<FormatoListaExterna>())
+                        {
+                            <option value="@formato">@T[Exibicao.Rotulo(formato)]</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="descricaoLista">@T["Descrição"]</label>
+                    <input class="form-control" id="descricaoLista" maxlength="500" @bind="_nova.Descricao" />
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="urlsLista">@T["URLs (uma por linha, somente HTTPS)"]</label>
+                    <textarea class="form-control fonte-mono" id="urlsLista" rows="3" @bind="_nova.Urls" placeholder="https://exemplo.com/lista.txt"></textarea>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="intervaloLista">@T["Atualizar a cada (horas)"]</label>
+                    <input class="form-control" id="intervaloLista" type="number" min="1" max="168" @bind="_nova.IntervaloHoras" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="limiteLista">@T["Limite de entradas"]</label>
+                    <input class="form-control" id="limiteLista" type="number" min="1" max="@ServicoListasExternas.LimiteMaximoEntradas" @bind="_nova.LimiteEntradas" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="modoLista">@T["Modo inicial"]</label>
+                    <select class="form-select" id="modoLista" @bind="_nova.Modo">
+                        @foreach (var modo in Enum.GetValues<ModoListaExterna>())
+                        {
+                            <option value="@modo">@T[Exibicao.Rotulo(modo)]</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="form-text mt-3">
+                @T["Texto: um IP, CIDR ou intervalo por linha (linhas com # ou ; são comentários). Comece em Avaliação e confira as coincidências antes de ativar: a lista passa pela mesma proteção (lista branca, servidor e administradores)."]
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" @onclick="() => _novaListaAberta = false">@T["Cancelar"]</button>
+            <button type="button" class="btn btn-primary" disabled="@_processando" @onclick="CriarAsync">@T["Salvar"]</button>
+        </div>
+    </ChildContent>
+</Modal>
+
+@code {
+    private IReadOnlyList<ListaExterna> _listas = [];
+    private IReadOnlyList<CoincidenciaListaExterna> _coincidencias = [];
+    private IReadOnlyDictionary<string, Bloqueio> _bloqueiosAtivos = new Dictionary<string, Bloqueio>();
+    private readonly Dictionary<string, LocalizacaoIp?> _locais = [];
+    private bool _modoSimulacao;
+    private bool _novaListaAberta;
+    private bool _processando;
+    private NovaLista _nova = new();
+
+    protected override async Task OnInitializedAsync() => await CarregarAsync();
+
+    private async Task CarregarAsync()
+    {
+        _listas = await Servicos.ExecutarAsync((ServicoListasExternas s) => s.ListarAsync());
+        _coincidencias = await Servicos.ExecutarAsync((ServicoListasExternas s) => s.ListarCoincidenciasAsync());
+        _modoSimulacao = await Servicos.ExecutarAsync((ServicoListasExternas s) => s.EstaEmSimulacaoAsync());
+        _bloqueiosAtivos = await Servicos.ExecutarAsync((ServicoListasExternas s) => s.ListarBloqueiosAtivosPorIpAsync());
+    }
+
+    /// <summary>
+    /// Se o IP da coincidencia esta bloqueado agora: pela propria lista (modo Ativa), por um bloqueio do motor
+    /// ou manual, ou nao. Em modo simulacao, a lista ativa aparece como "Seria bloqueado".
+    /// </summary>
+    private (string Classe, string Texto) SituacaoBloqueio(CoincidenciaListaExterna coincidencia)
+    {
+        var lista = _listas.FirstOrDefault(l => l.Id == coincidencia.ListaExternaId);
+        if (lista?.Modo == ModoListaExterna.Ativa)
+            return _modoSimulacao ? ("text-bg-info", "Seria bloqueado") : ("text-bg-danger", "Bloqueado pela lista");
+
+        if (_bloqueiosAtivos.TryGetValue(coincidencia.Ip, out var bloqueio))
+            return bloqueio.Simulado ? ("text-bg-info", "Simulado") : ("text-bg-danger", "Bloqueado por regra");
+
+        return ("text-bg-secondary", "Não bloqueado");
+    }
+
+    private string NomeLista(int id) => _listas.FirstOrDefault(l => l.Id == id)?.Nome ?? "—";
+
+    private LocalizacaoIp? Localizar(string ip)
+    {
+        if (!_locais.TryGetValue(ip, out var local))
+        {
+            local = EnderecoIp.TentarConverter(ip, out var endereco) ? Geolocalizacao.Localizar(endereco) : null;
+            _locais[ip] = local;
+        }
+        return local;
+    }
+
+    private void AbrirNovaLista()
+    {
+        _nova = new NovaLista();
+        _novaListaAberta = true;
+    }
+
+    private Task CriarAsync() => ExecutarAsync(async () =>
+    {
+        var dados = new DadosListaExterna(
+            _nova.Nome ?? string.Empty, _nova.Descricao,
+            (_nova.Urls ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+            _nova.Formato, _nova.IntervaloHoras, _nova.LimiteEntradas, _nova.Modo);
+        var resultado = await Servicos.ExecutarAsync((ServicoListasExternas s) => s.CriarAsync(dados));
+        if (resultado.Sucesso)
+            _novaListaAberta = false;
+        return resultado;
+    }, "Lista externa criada. O motor baixa a lista em até 1 minuto.");
+
+    private Task DefinirModoAsync(int id, ModoListaExterna modo) => ExecutarAsync(
+        () => Servicos.ExecutarAsync((ServicoListasExternas s) => s.DefinirModoAsync(id, modo)),
+        "Lista externa atualizada. O motor aplica a alteração em instantes.");
+
+    private Task AtualizarAsync(int id) => ExecutarAsync(
+        () => Servicos.ExecutarAsync((ServicoListasExternas s) => s.SolicitarAtualizacaoAsync(id)),
+        "Atualização solicitada. O motor baixa a lista em até 1 minuto.");
+
+    private async Task ExcluirAsync(ListaExterna lista)
+    {
+        if (!await ConfirmarAsync(T["Excluir a lista {0}? As faixas dela saem do firewall em instantes.", lista.Nome]))
+            return;
+        await ExecutarAsync(() => Servicos.ExecutarAsync((ServicoListasExternas s) => s.ExcluirAsync(lista.Id)), "Lista externa excluída.");
+    }
+
+    private async Task ExecutarAsync(Func<Task<Resultado>> acao, string mensagemSucesso)
+    {
+        _processando = true;
+        try
+        {
+            Avisos.Mostrar(await acao(), mensagemSucesso);
+            await CarregarAsync();
+        }
+        finally
+        {
+            _processando = false;
+        }
+    }
+
+    private sealed class NovaLista
+    {
+        public string? Nome { get; set; }
+        public string? Descricao { get; set; }
+        public string? Urls { get; set; }
+        public FormatoListaExterna Formato { get; set; } = FormatoListaExterna.TextoSimples;
+        public int IntervaloHoras { get; set; } = 24;
+        public int LimiteEntradas { get; set; } = 10_000;
+        public ModoListaExterna Modo { get; set; } = ModoListaExterna.Avaliacao;
+    }
+}

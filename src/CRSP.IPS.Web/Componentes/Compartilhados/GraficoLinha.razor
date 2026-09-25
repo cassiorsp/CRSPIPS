@@ -1,0 +1,25 @@
+@* Linhas (Chart.js): eventos no eixo esquerdo e bloqueios no eixo direito. *@
+@inherits GraficoBase
+
+<div class="grafico"><canvas @ref="Canvas" role="img" aria-label="@RotuloEventos / @RotuloBloqueios"></canvas></div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<string> Rotulos { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<int> Eventos { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<int> Bloqueios { get; set; } = [];
+    [Parameter, EditorRequired] public string RotuloEventos { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string RotuloBloqueios { get; set; } = string.Empty;
+
+    protected override string Funcao => "linha";
+
+    protected override object Versao => Eventos;
+
+    protected override object MontarDados() => new
+    {
+        rotulos = Rotulos,
+        eventos = Eventos,
+        bloqueios = Bloqueios,
+        rotuloEventos = RotuloEventos,
+        rotuloBloqueios = RotuloBloqueios
+    };
+}

@@ -1,0 +1,191 @@
+@page "/Monitor"
+@implements IDisposable
+@inject IServicoGeolocalizacao Geolocalizacao
+@using CRSP.IPS.Application.Abstracoes
+@using CRSP.IPS.Domain.ObjetosValor
+
+<Titulo Texto="@T["Monitor"]" />
+
+<div class="pagina-cheia">
+<div class="card cartao cartao-cheio">
+    <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+        <span><span class="ponto-vivo @(_pausado ? "pausado" : "")"></span> @T["Eventos suspeitos em tempo real"]</span>
+        <div class="ms-auto d-flex flex-wrap gap-2">
+            <select class="form-select form-select-sm filtro-monitor" aria-label="@T["Fonte"]" value="@_fonte" @onchange="e => AlterarFiltroAsync(() => _fonte = (string?)e.Value)">
+                <option value="">@T["Todas as fontes"]</option>
+                @foreach (var fonte in Enum.GetValues<TipoFonte>())
+                {
+                    <option value="@fonte">@T[Exibicao.Rotulo(fonte)]</option>
+                }
+            </select>
+            <select class="form-select form-select-sm filtro-monitor" aria-label="@T["País"]" value="@_pais" @onchange="e => AlterarFiltroAsync(() => _pais = (string?)e.Value)">
+                <option value="">@T["Todos os países"]</option>
+                @foreach (var (codigo, nome) in _paises)
+                {
+                    <option value="@codigo">@nome (@codigo)</option>
+                }
+            </select>
+            <select class="form-select form-select-sm filtro-monitor" aria-label="@T["Status"]" value="@_status" @onchange="e => AlterarFiltroAsync(() => _status = (string?)e.Value)">
+                <option value="">@T["Todos os status"]</option>
+                @foreach (var codigo in _codigosStatus)
+                {
+                    <option value="@codigo">@codigo</option>
+                }
+            </select>
+            <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button" @onclick="AlternarPausa">
+                <i class="bi @(_pausado ? "bi-play" : "bi-pause")"></i> @(_pausado ? T["Continuar"] : T["Pausar"])
+            </button>
+        </div>
+    </div>
+    <div class="table-responsive tabela-rolagem">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+            <tr><th>@T["Quando"]</th><th>@T["IP"]</th><th>@T["Fonte"]</th><th>@T["Regra"]</th><th>@T["Site"]</th><th>@T["Requisição"]</th><th>@T["Status"]</th><th>@T["Detalhe"]</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var linha in _linhas)
+            {
+                var evento = linha.Evento;
+                <tr @key="evento.Id" class="@(linha.Nova ? "linha-nova" : "")">
+                    <td class="small text-nowrap">@Exibicao.DataHora(evento.OcorridoEmUtc)</td>
+                    <td>
+                        <Bandeira Codigo="@evento.PaisCodigo" />
+                        <a href="/Bloqueios/Detalhe?ip=@Uri.EscapeDataString(evento.Ip)" class="fonte-mono">@evento.Ip</a>
+                        @if (linha.Local is { } local)
+                        {
+                            <div class="small text-body-secondary text-nowrap">@local</div>
+                        }
+                    </td>
+                    <td class="small">@T[Exibicao.Rotulo(evento.Fonte)]</td>
+                    <td class="small">@(evento.Regra ?? T["Política de países"])</td>
+                    <td class="small text-nowrap">@(evento.Site ?? "—")</td>
+                    <td class="small fonte-mono text-break">@evento.Metodo @evento.Url</td>
+                    <td>@evento.CodigoStatus</td>
+                    <td class="small text-break">@(evento.Detalhe ?? evento.UserAgent)</td>
+                </tr>
+            }
+            @if (_linhas.Count == 0)
+            {
+                <tr><td colspan="8" class="text-body-secondary py-4 text-center">@T["Aguardando eventos. Somente eventos que casam com alguma regra aparecem aqui."]</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer small text-body-secondary">
+        @T["Atualização automática a cada 5 segundos. O IIS grava o log em disco a cada ~60 segundos, então eventos web podem aparecer com esse atraso."]
+    </div>
+</div>
+</div>
+
+@code {
+    private const int LimiteLinhas = 300;
+
+    private readonly List<LinhaMonitor> _linhas = [];
+    private readonly Dictionary<string, string?> _locais = [];
+    private readonly CancellationTokenSource _cancelamento = new();
+    private IReadOnlyList<(string Codigo, string Nome)> _paises = [];
+    private IReadOnlyList<int> _codigosStatus = [];
+    private string? _fonte;
+    private string? _pais;
+    private string? _status;
+    private bool _pausado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarOpcoesAsync();
+        await BuscarAsync(reiniciar: true);
+    }
+
+    protected override void OnAfterRender(bool primeiraRenderizacao)
+    {
+        if (primeiraRenderizacao && RendererInfo.IsInteractive)
+            _ = AtualizarPeriodicamenteAsync();
+    }
+
+    private async Task CarregarOpcoesAsync()
+    {
+        var opcoes = await Servicos.ExecutarAsync((ServicoPainel s) => s.ObterOpcoesFiltroEventosAsync());
+        _paises = opcoes.Paises.Select(c => (c, Exibicao.NomePais(c))).OrderBy(p => p.Item2, StringComparer.CurrentCulture).ToList();
+        _codigosStatus = opcoes.CodigosStatus;
+    }
+
+    private async Task AlterarFiltroAsync(Action alterar)
+    {
+        alterar();
+        await BuscarAsync(reiniciar: true);
+    }
+
+    private async Task BuscarAsync(bool reiniciar)
+    {
+        if (reiniciar)
+            _linhas.Clear();
+
+        var filtro = new FiltroEventos(
+            Enum.TryParse<TipoFonte>(_fonte, out var fonte) ? fonte : null,
+            string.IsNullOrEmpty(_pais) ? null : _pais,
+            int.TryParse(_status, out var status) ? status : null);
+        var aposId = _linhas.Count == 0 ? (long?)null : _linhas.Max(l => l.Evento.Id);
+
+        var eventos = await Servicos.ExecutarAsync((ServicoPainel s) => s.ListarEventosRecentesAsync(filtro, aposId));
+        if (eventos.Count == 0)
+            return;
+
+        var destacar = aposId is not null;
+        foreach (var linha in _linhas)
+            linha.Nova = false;
+        _linhas.InsertRange(0, eventos.Select(e => new LinhaMonitor(e, DescreverLocal(e.Ip)) { Nova = destacar }));
+        if (_linhas.Count > LimiteLinhas)
+            _linhas.RemoveRange(LimiteLinhas, _linhas.Count - LimiteLinhas);
+    }
+
+    private async Task AtualizarPeriodicamenteAsync()
+    {
+        using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        var ciclos = 0;
+        try
+        {
+            while (await temporizador.WaitForNextTickAsync(_cancelamento.Token))
+            {
+                if (_pausado)
+                    continue;
+                await InvokeAsync(async () =>
+                {
+                    // As opcoes dos filtros (paises e codigos) mudam pouco: recarregadas a cada minuto.
+                    if (++ciclos % 12 == 0)
+                        await CarregarOpcoesAsync();
+                    await BuscarAsync(reiniciar: false);
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private void AlternarPausa() => _pausado = !_pausado;
+
+    private string? DescreverLocal(string ip)
+    {
+        if (_locais.TryGetValue(ip, out var descricao))
+            return descricao;
+        descricao = Exibicao.DescreverLocal(EnderecoIp.TentarConverter(ip, out var endereco) ? Geolocalizacao.Localizar(endereco) : null);
+        if (_locais.Count > 2000)
+            _locais.Clear();
+        _locais[ip] = descricao;
+        return descricao;
+    }
+
+    public void Dispose()
+    {
+        _cancelamento.Cancel();
+        _cancelamento.Dispose();
+    }
+
+    private sealed class LinhaMonitor(EventoResumo evento, string? local)
+    {
+        public EventoResumo Evento { get; } = evento;
+        public string? Local { get; } = local;
+        public bool Nova { get; set; }
+    }
+}

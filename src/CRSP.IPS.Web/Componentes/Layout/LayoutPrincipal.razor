@@ -1,0 +1,103 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject IStringLocalizer<Textos> T
+@inject NavigationManager Navegacao
+@inject IJSRuntime JS
+
+<div class="app">
+    <aside class="barra-lateral @(_menuAberto ? "aberta" : "")">
+        <a class="marca" href="/">
+            <i class="bi bi-shield-shaded"></i>
+            <span>CRSPIPS</span>
+        </a>
+        <nav class="menu">
+            <div class="menu-grupo">@T["Monitoramento"]</div>
+            <NavLink class="menu-item" href="/" Match="NavLinkMatch.All"><i class="bi bi-speedometer2"></i>@T["Dashboard"]</NavLink>
+            <NavLink class="menu-item" href="/Monitor"><i class="bi bi-activity"></i>@T["Monitor"]</NavLink>
+
+            <div class="menu-grupo">@T["Proteção"]</div>
+            <NavLink class="menu-item" href="/Bloqueios"><i class="bi bi-slash-circle"></i>@T["Bloqueios"]</NavLink>
+            <NavLink class="menu-item" href="/Regras"><i class="bi bi-sliders"></i>@T["Regras de detecção"]</NavLink>
+            <NavLink class="menu-item" href="/Listas"><i class="bi bi-list-check"></i>@T["Listas"]</NavLink>
+            <NavLink class="menu-item" href="/Paises"><i class="bi bi-globe2"></i>@T["Países"]</NavLink>
+
+            <div class="menu-grupo">@T["Sistema"]</div>
+            <NavLink class="menu-item" href="/Configuracoes"><i class="bi bi-gear"></i>@T["Configurações"]</NavLink>
+            <NavLink class="menu-item" href="/Usuarios"><i class="bi bi-people"></i>@T["Usuários"]</NavLink>
+            <NavLink class="menu-item" href="/Auditoria"><i class="bi bi-journal-text"></i>@T["Auditoria"]</NavLink>
+        </nav>
+        <div class="rodape-menu">CRSPIPS · crsp.dev</div>
+    </aside>
+
+    <div class="conteudo">
+        <header class="topo">
+            <button class="btn btn-link text-reset d-lg-none" type="button" aria-label="@T["Menu"]" @onclick="() => _menuAberto = !_menuAberto">
+                <i class="bi bi-list fs-4"></i>
+            </button>
+            <h1 class="topo-titulo"><SectionOutlet SectionName="@SecaoTitulo" /></h1>
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <StatusMotor />
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" type="button">
+                        <i class="bi bi-translate"></i> @(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "EN" : "PT")
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><button class="dropdown-item" type="button" @onclick='() => TrocarIdioma("pt-BR")'>Português (Brasil)</button></li>
+                        <li><button class="dropdown-item" type="button" @onclick='() => TrocarIdioma("en")'>English</button></li>
+                    </ul>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary" type="button" title="@T["Alternar tema"]" @onclick="AlternarTemaAsync">
+                    <i class="bi bi-circle-half"></i>
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" type="button">
+                        <i class="bi bi-person-circle"></i>
+                        <AuthorizeView><span class="d-none d-md-inline">@context.User.Identity?.Name</span></AuthorizeView>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="/Conta/Senha"><i class="bi bi-key me-2"></i>@T["Alterar minha senha"]</a></li>
+                        <li><hr class="dropdown-divider" /></li>
+                        <li>
+                            <form method="post" action="/Conta/Sair">
+                                <AntiforgeryToken />
+                                <input type="hidden" name="origem" value="menu" />
+                                <button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right me-2"></i>@T["Sair"]</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        <main class="principal">
+            <Mensagens />
+            @Body
+        </main>
+    </div>
+</div>
+
+@code {
+    public const string SecaoTitulo = "titulo";
+
+    private bool _menuAberto;
+
+    protected override void OnInitialized() => Navegacao.LocationChanged += FecharMenu;
+
+    private void FecharMenu(object? remetente, LocationChangedEventArgs args)
+    {
+        if (!_menuAberto)
+            return;
+        _menuAberto = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void TrocarIdioma(string cultura)
+    {
+        var retorno = "/" + Navegacao.ToBaseRelativePath(Navegacao.Uri);
+        Navegacao.NavigateTo($"/idioma?cultura={cultura}&retorno={Uri.EscapeDataString(retorno)}", forceLoad: true);
+    }
+
+    private async Task AlternarTemaAsync() => await JS.InvokeVoidAsync("crspips.alternarTema");
+
+    public void Dispose() => Navegacao.LocationChanged -= FecharMenu;
+}

@@ -3,7 +3,7 @@ using System.Text.Json;
 using CRSP.IPS.Domain.Entidades;
 using CRSP.IPS.Domain.Enums;
 using CRSP.IPS.Domain.ObjetosValor;
-using Microsoft.AspNetCore.Html;
+using CRSP.IPS.Application.Modelos;
 
 namespace CRSP.IPS.Web.Infra;
 
@@ -35,10 +35,23 @@ public static class Exibicao
         return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? nomes[1] : nomes[0];
     }
 
-    public static IHtmlContent Bandeira(string? codigo) =>
-        string.IsNullOrWhiteSpace(codigo) || codigo.Length != 2
-            ? new HtmlString("<span class=\"fi fi-xx bandeira-vazia\"></span>")
-            : new HtmlString($"<span class=\"fi fi-{codigo.ToLowerInvariant()}\" title=\"{codigo.ToUpperInvariant()}\"></span>");
+    /// <summary>"Pais · Cidade · AS123 Provedor" (partes ausentes sao omitidas). Nulo quando nao ha localizacao.</summary>
+    public static string? DescreverLocal(LocalizacaoIp? local, bool incluirPais = true) =>
+        local is null
+            ? null
+            : string.Join(" · ", new[]
+            {
+                incluirPais ? NomePais(local.PaisCodigo, local.PaisNome) : null,
+                local.Cidade,
+                local.Asn is { } asn ? $"AS{asn} {local.Organizacao}".Trim() : null
+            }.Where(parte => !string.IsNullOrWhiteSpace(parte) && parte != "—")) is { Length: > 0 } texto ? texto : null;
+
+    /// <summary>Rotulo do eixo do grafico conforme o intervalo (hora, dia ou semana).</summary>
+    public static string RotuloSerie(DateTime inicio, GranularidadeSerie granularidade) => granularidade switch
+    {
+        GranularidadeSerie.Hora => inicio.ToString("HH:00", CultureInfo.CurrentCulture),
+        _ => inicio.ToString(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "MM/dd" : "dd/MM", CultureInfo.InvariantCulture)
+    };
 
     /// <summary>Todos os paises (codigo ISO + nome no idioma atual), ordenados pelo nome.</summary>
     public static IReadOnlyList<(string Codigo, string Nome)> ListarPaises() =>
@@ -94,6 +107,35 @@ public static class Exibicao
         AplicacaoPoliticaPaises.Reativa => "Reativa (todo o tráfego)",
         AplicacaoPoliticaPaises.ReativaSuspeitos => "Reativa (somente eventos suspeitos)",
         _ => "Firewall por portas"
+    };
+
+    public static string Rotulo(FormatoListaExterna valor) => valor switch
+    {
+        FormatoListaExterna.TextoSimples => "Texto (um IP ou faixa por linha)",
+        FormatoListaExterna.SpamhausJson => "Spamhaus DROP (JSON)",
+        _ => "DShield (block.txt)"
+    };
+
+    public static string Rotulo(ModoListaExterna valor) => valor switch
+    {
+        ModoListaExterna.Desativada => "Desativada",
+        ModoListaExterna.Avaliacao => "Avaliação",
+        _ => "Ativa"
+    };
+
+    public static string Rotulo(PeriodoDashboard valor) => valor switch
+    {
+        PeriodoDashboard.Hoje => "Hoje",
+        PeriodoDashboard.Tudo => "Tudo",
+        _ => $"{(int)valor}d"
+    };
+
+    /// <summary>Texto do periodo nos titulos dos cards ("Hoje", "7 dias", "todo o período").</summary>
+    public static string DescreverPeriodo(PeriodoDashboard valor) => valor switch
+    {
+        PeriodoDashboard.Hoje => "Hoje",
+        PeriodoDashboard.Tudo => "todo o período",
+        _ => "{0} dias"
     };
 
     public static IReadOnlyList<(string Valor, string Texto)> OpcoesDuracao { get; } =

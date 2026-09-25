@@ -1,28 +1,30 @@
 using System.Security.Claims;
-using CRSP.IPS.Application.Modelos;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.Localization;
+using Microsoft.JSInterop;
 
 namespace CRSP.IPS.Web.Infra;
 
-/// <summary>Base das paginas: mensagens de retorno (TempData) e redirecionamento seguro apos POST.</summary>
-public abstract class PaginaBase : PageModel
+/// <summary>Base das paginas: servicos com escopo proprio, mensagens de retorno, traducao e confirmacao.</summary>
+public abstract class PaginaBase : ComponentBase
 {
-    [TempData]
-    public string? MensagemSucesso { get; set; }
+    [Inject] protected ExecutorServicos Servicos { get; set; } = null!;
+    [Inject] protected Avisos Avisos { get; set; } = null!;
+    [Inject] protected NavigationManager Navegacao { get; set; } = null!;
+    [Inject] protected IStringLocalizer<Textos> T { get; set; } = null!;
+    [Inject] private IJSRuntime JS { get; set; } = null!;
 
-    [TempData]
-    public string? MensagemErro { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? EstadoAutenticacao { get; set; }
 
-    protected int IdUsuarioLogado => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
-
-    protected IActionResult Concluir(Resultado resultado, string mensagemSucesso, string? retorno = null)
+    protected async Task<int> ObterIdUsuarioAsync()
     {
-        if (resultado.Sucesso)
-            MensagemSucesso = mensagemSucesso;
-        else
-            MensagemErro = resultado.Erro;
-
-        return !string.IsNullOrEmpty(retorno) && Url.IsLocalUrl(retorno) ? LocalRedirect(retorno) : RedirectToPage();
+        if (EstadoAutenticacao is null)
+            return 0;
+        var usuario = (await EstadoAutenticacao).User;
+        return int.TryParse(usuario.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
     }
+
+    /// <summary>Confirmacao nativa do navegador para acoes destrutivas.</summary>
+    protected ValueTask<bool> ConfirmarAsync(string texto) => JS.InvokeAsync<bool>("confirm", texto);
 }

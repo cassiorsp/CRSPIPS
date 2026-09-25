@@ -165,7 +165,7 @@ public class MotorTestes
         Assert.Null(await ambiente.ExecutarAsync(p => p.GetRequiredService<IRepositorioBloqueios>().ObterAtivoPorIpAsync(Atacante)));
         Assert.Empty(await ambiente.ExecutarAsync(p => p.GetRequiredService<IRepositorioEventos>().ListarPorIpAsync(Atacante, 10)));
 
-        var auditoria = await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoAuditoria>().PesquisarAsync("Histórico limpo", 1));
+        var auditoria = await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoAuditoria>().PesquisarAsync("Histórico limpo"));
         Assert.Single(auditoria.Itens);
 
         var tudo = await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoHistorico>().LimparAsync(manterBloqueiosAtivos: false));

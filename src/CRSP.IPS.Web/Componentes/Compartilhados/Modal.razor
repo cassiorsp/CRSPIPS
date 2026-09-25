@@ -1,0 +1,30 @@
+@* Modal do Bootstrap controlado pelo Blazor (sem o JavaScript do Bootstrap, para nao disputar o DOM). *@
+@inject IStringLocalizer<Textos> T
+
+@if (Aberto)
+{
+    <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" @onkeydown="AoTeclarAsync">
+        <div class="modal-dialog @Classe">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5">@Cabecalho</h2>
+                    <button type="button" class="btn-close" aria-label="@T["Fechar"]" @onclick="FecharAsync"></button>
+                </div>
+                @ChildContent
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop show"></div>
+}
+
+@code {
+    [Parameter] public bool Aberto { get; set; }
+    [Parameter] public EventCallback<bool> AbertoChanged { get; set; }
+    [Parameter] public RenderFragment? Cabecalho { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Classe { get; set; }
+
+    private Task FecharAsync() => AbertoChanged.InvokeAsync(false);
+
+    private Task AoTeclarAsync(KeyboardEventArgs args) => args.Key == "Escape" ? FecharAsync() : Task.CompletedTask;
+}

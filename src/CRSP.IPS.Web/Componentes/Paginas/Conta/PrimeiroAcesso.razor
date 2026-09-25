@@ -1,0 +1,73 @@
+@page "/Conta/PrimeiroAcesso"
+@using System.Net
+@inject LimitadorLogin Limitador
+@inject CRSP.IPS.Application.Abstracoes.IContextoUsuario ContextoUsuario
+
+<PageTitle>@T["Primeiro acesso"] · CRSPIPS</PageTitle>
+
+<h2 class="h5 mb-1">@T["Primeiro acesso"]</h2>
+<p class="text-body-secondary small">@T["Crie o administrador do sistema."]</p>
+
+@if (!AcessoLocal)
+{
+    <div class="alert alert-warning small">
+        <i class="bi bi-lock me-1"></i>@T["Por segurança, o primeiro administrador só pode ser criado acessando o painel no próprio servidor (localhost)."]
+    </div>
+}
+else
+{
+    <EditForm Model="Dados" FormName="primeiro-acesso" OnValidSubmit="CriarAsync" method="post" novalidate>
+        <DataAnnotationsValidator />
+        @if (_erro is not null)
+        {
+            <div class="alert alert-danger py-2 small">@T[_erro]</div>
+        }
+        <CamposUsuario Dados="Dados" />
+        <button type="submit" class="btn btn-primary w-100">@T["Criar administrador"]</button>
+    </EditForm>
+}
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
+
+    [SupplyParameterFromForm(FormName = "primeiro-acesso")] private DadosNovoUsuario Dados { get; set; } = null!;
+
+    private string? _erro;
+
+    /// <summary>
+    /// O primeiro administrador so pode ser criado enquanto nao existe nenhum usuario E a requisicao vem
+    /// do proprio servidor (localhost), para que ninguem de fora assuma o painel recem-instalado.
+    /// </summary>
+    private bool AcessoLocal => HttpContext.Connection.RemoteIpAddress is { } ip && IPAddress.IsLoopback(ip);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Dados ??= new DadosNovoUsuario();
+        if (await Servicos.ExecutarAsync((ServicoUsuarios s) => s.ExisteAlgumAsync()))
+            Navegacao.NavigateTo("/Conta/Entrar");
+    }
+
+    private async Task CriarAsync()
+    {
+        if (!AcessoLocal)
+            return;
+        if (!Limitador.Permitir(ContextoUsuario.Ip))
+        {
+            _erro = "Muitas tentativas. Aguarde um minuto e tente novamente.";
+            return;
+        }
+
+        var criacao = await Servicos.ExecutarAsync((ServicoUsuarios s) => s.CriarAsync(Dados.Nome, Dados.Email, Dados.Senha));
+        if (!criacao.Sucesso)
+        {
+            _erro = criacao.Erro;
+            return;
+        }
+
+        var autenticacao = await Servicos.ExecutarAsync((ServicoUsuarios s) => s.AutenticarAsync(Dados.Email, Dados.Senha, ContextoUsuario.Ip));
+        if (autenticacao.Valor is not null)
+            await SessaoUsuario.EntrarAsync(HttpContext, autenticacao.Valor);
+
+        Navegacao.NavigateTo("/", forceLoad: true);
+    }
+}

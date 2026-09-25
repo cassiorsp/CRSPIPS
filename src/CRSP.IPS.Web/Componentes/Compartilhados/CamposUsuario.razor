@@ -1,0 +1,28 @@
+@* Nome, e-mail, senha e confirmacao: usado no cadastro de usuario e no primeiro acesso. *@
+@inject IStringLocalizer<Textos> T
+
+<div class="mb-3">
+    <label class="form-label" for="nome">@T["Nome"]</label>
+    <InputText id="nome" class="form-control" @bind-Value="Dados.Nome" />
+    <MensagemValidacao Para="() => Dados.Nome" />
+</div>
+<div class="mb-3">
+    <label class="form-label" for="email">@T["E-mail"]</label>
+    <InputText id="email" class="form-control" autocomplete="username" @bind-Value="Dados.Email" />
+    <MensagemValidacao Para="() => Dados.Email" />
+</div>
+<div class="mb-3">
+    <label class="form-label" for="senha">@T["Senha"]</label>
+    <InputText id="senha" type="password" class="form-control" autocomplete="new-password" @bind-Value="Dados.Senha" />
+    <div class="form-text">@T["Mínimo de 10 caracteres, com letras e números."]</div>
+    <MensagemValidacao Para="() => Dados.Senha" />
+</div>
+<div class="mb-4">
+    <label class="form-label" for="confirmarSenha">@T["Confirmar senha"]</label>
+    <InputText id="confirmarSenha" type="password" class="form-control" autocomplete="new-password" @bind-Value="Dados.ConfirmarSenha" />
+    <MensagemValidacao Para="() => Dados.ConfirmarSenha" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DadosNovoUsuario Dados { get; set; } = null!;
+}

@@ -108,9 +108,6 @@
   <data name="As senhas não conferem." xml:space="preserve">
     <value>Passwords do not match.</value>
   </data>
-  <data name="Ataques mitigados hoje" xml:space="preserve">
-    <value>Attacks mitigated today</value>
-  </data>
   <data name="Ativa" xml:space="preserve">
     <value>Enabled</value>
   </data>
@@ -360,9 +357,6 @@
   <data name="Eventos 4625 (Security), 140 (RdpCoreTS) e 18456 (SQL Server). Para o evento 4625 trazer o IP, a auditoria de logon com falha deve estar habilitada (padrão no Windows Server)." xml:space="preserve">
     <value>Events 4625 (Security), 140 (RdpCoreTS) and 18456 (SQL Server). For event 4625 to include the IP, failed logon auditing must be enabled (default on Windows Server).</value>
   </data>
-  <data name="Eventos por fonte (24h)" xml:space="preserve">
-    <value>Events by source (24h)</value>
-  </data>
   <data name="Eventos processados" xml:space="preserve">
     <value>Events processed</value>
   </data>
@@ -371,9 +365,6 @@
   </data>
   <data name="Eventos suspeitos" xml:space="preserve">
     <value>Suspicious events</value>
-  </data>
-  <data name="Eventos suspeitos (24h)" xml:space="preserve">
-    <value>Suspicious events (24h)</value>
   </data>
   <data name="Eventos suspeitos em tempo real" xml:space="preserve">
     <value>Real-time suspicious events</value>
@@ -467,9 +458,6 @@
   </data>
   <data name="IP, CIDR ou intervalo" xml:space="preserve">
     <value>IP, CIDR or range</value>
-  </data>
-  <data name="IPs agressores mais frequentes (30 dias)" xml:space="preserve">
-    <value>Most frequent attacking IPs (30 days)</value>
   </data>
   <data name="IPs da lista branca, do próprio servidor e usados por administradores do painel nunca são bloqueados." xml:space="preserve">
     <value>Allowlisted IPs, the server's own IPs and IPs used by panel administrators are never blocked.</value>
@@ -948,9 +936,6 @@
   <data name="URL" xml:space="preserve">
     <value>URL</value>
   </data>
-  <data name="URLs mais atacadas (7 dias)" xml:space="preserve">
-    <value>Most attacked URLs (7 days)</value>
-  </data>
   <data name="Um tempo por nível, separados por vírgula (m = minutos, h = horas, d = dias). Ex: 1h, 24h, 7d, 30d. A 1ª ocorrência usa o 1º tempo; cada reincidência sobe um nível." xml:space="preserve">
     <value>One duration per level, comma-separated (m = minutes, h = hours, d = days). E.g. 1h, 24h, 7d, 30d. The 1st occurrence uses the 1st duration; each repeat offense goes up one level.</value>
   </data>
@@ -1038,9 +1023,6 @@
   <data name="Última sincronização" xml:space="preserve">
     <value>Last sync</value>
   </data>
-  <data name="Últimas 24 horas" xml:space="preserve">
-    <value>Last 24 hours</value>
-  </data>
   <data name="Último IP" xml:space="preserve">
     <value>Last IP</value>
   </data>
@@ -1058,9 +1040,6 @@
   </data>
   <data name="Último download:" xml:space="preserve">
     <value>Last download:</value>
-  </data>
-  <data name="Download pendente: o motor processa em até 15 segundos. Atualize a página para ver o resultado." xml:space="preserve">
-    <value>Download pending: the engine processes it within 15 seconds. Refresh the page to see the result.</value>
   </data>
   <data name="ID da conta" xml:space="preserve">
     <value>Account ID</value>
@@ -1173,12 +1152,6 @@
   <data name="Tentativas contra Exchange (ProxyShell, OWA, ECP). Desative se este servidor hospedar Exchange." xml:space="preserve">
     <value>Attacks against Exchange (ProxyShell, OWA, ECP). Disable it if this server hosts Exchange.</value>
   </data>
-  <data name="Países com eventos suspeitos (24h)" xml:space="preserve">
-    <value>Countries with suspicious events (24h)</value>
-  </data>
-  <data name="Países com mais bloqueios (7 dias)" xml:space="preserve">
-    <value>Countries with most blocks (7 days)</value>
-  </data>
   <data name="Eventos que casaram com alguma regra. Amostras limitadas a 20 por IP, regra e hora." xml:space="preserve">
     <value>Events that matched a rule. Samples limited to 20 per IP, rule and hour.</value>
   </data>
@@ -1244,9 +1217,6 @@
   </data>
   <data name="Eventos" xml:space="preserve">
     <value>Events</value>
-  </data>
-  <data name="Eventos suspeitos registrados nos últimos 30 dias (amostras limitadas a 20 por IP, regra e hora)." xml:space="preserve">
-    <value>Suspicious events recorded in the last 30 days (samples limited to 20 per IP, rule and hour).</value>
   </data>
   <data name="Reativa (somente eventos suspeitos)" xml:space="preserve">
     <value>Reactive (suspicious events only)</value>
@@ -1358,5 +1328,221 @@
   </data>
   <data name="Última atualização" xml:space="preserve">
     <value>Last update</value>
+  </data>
+  <data name="Bloqueio" xml:space="preserve">
+    <value>Block</value>
+  </data>
+  <data name="Seria bloqueado" xml:space="preserve">
+    <value>Would be blocked</value>
+  </data>
+  <data name="Bloqueado pela lista" xml:space="preserve">
+    <value>Blocked by list</value>
+  </data>
+  <data name="Bloqueado por regra" xml:space="preserve">
+    <value>Blocked by rule</value>
+  </data>
+  <data name="Não bloqueado" xml:space="preserve">
+    <value>Not blocked</value>
+  </data>
+  <data name="{0} adicionada(s), {1} já existente(s) ou repetida(s), {2} com erro." xml:space="preserve">
+    <value>{0} added, {1} already registered or repeated, {2} with errors.</value>
+  </data>
+  <data name="a cada {0} h" xml:space="preserve">
+    <value>every {0} h</value>
+  </data>
+  <data name="A nova expiracao deve ser futura." xml:space="preserve">
+    <value>The new expiration must be in the future.</value>
+  </data>
+  <data name="Alterações não salvas" xml:space="preserve">
+    <value>Unsaved changes</value>
+  </data>
+  <data name="Ataques mitigados" xml:space="preserve">
+    <value>Attacks mitigated</value>
+  </data>
+  <data name="Atualizar" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Atualizar a cada (horas)" xml:space="preserve">
+    <value>Update every (hours)</value>
+  </data>
+  <data name="Baixar modelo CSV" xml:space="preserve">
+    <value>Download CSV template</value>
+  </data>
+  <data name="Colunas: faixa;descricao (a descrição é opcional). Separador ponto e vírgula ou vírgula, até 5.000 linhas e 1 MB. Linhas repetidas ou já cadastradas são ignoradas." xml:space="preserve">
+    <value>Columns: faixa;descricao (range;description, the description is optional). Semicolon or comma separator, up to 5,000 lines and 1 MB. Repeated or already registered lines are skipped.</value>
+  </data>
+  <data name="Download pendente: o motor processa em até 15 segundos." xml:space="preserve">
+    <value>Download pending: the engine processes it within 15 seconds.</value>
+  </data>
+  <data name="DShield (block.txt)" xml:space="preserve">
+    <value>DShield (block.txt)</value>
+  </data>
+  <data name="Eventos e bloqueios" xml:space="preserve">
+    <value>Events and blocks</value>
+  </data>
+  <data name="Eventos por fonte" xml:space="preserve">
+    <value>Events by source</value>
+  </data>
+  <data name="Eventos suspeitos registrados no período (amostras limitadas a 20 por IP, regra e hora)." xml:space="preserve">
+    <value>Suspicious events recorded in the period (samples limited to 20 per IP, rule and hour).</value>
+  </data>
+  <data name="Excluir a lista {0}? As faixas dela saem do firewall em instantes." xml:space="preserve">
+    <value>Delete the list {0}? Its ranges will be removed from the firewall shortly.</value>
+  </data>
+  <data name="Formato" xml:space="preserve">
+    <value>Format</value>
+  </data>
+  <data name="Formato ou modo inválido." xml:space="preserve">
+    <value>Invalid format or mode.</value>
+  </data>
+  <data name="Hoje" xml:space="preserve">
+    <value>Today</value>
+  </data>
+  <data name="Importação concluída:" xml:space="preserve">
+    <value>Import finished:</value>
+  </data>
+  <data name="Importar arquivo CSV" xml:space="preserve">
+    <value>Import CSV file</value>
+  </data>
+  <data name="Informe ao menos um tempo de bloqueio." xml:space="preserve">
+    <value>Enter at least one block duration.</value>
+  </data>
+  <data name="Informe ao menos uma URL HTTPS válida." xml:space="preserve">
+    <value>Enter at least one valid HTTPS URL.</value>
+  </data>
+  <data name="Informe o nome da lista." xml:space="preserve">
+    <value>Enter the list name.</value>
+  </data>
+  <data name="Informe um nome de até 100 caracteres." xml:space="preserve">
+    <value>Enter a name of up to 100 characters.</value>
+  </data>
+  <data name="Inicio e fim da faixa devem ser da mesma familia (IPv4/IPv6)." xml:space="preserve">
+    <value>Range start and end must be of the same family (IPv4/IPv6).</value>
+  </data>
+  <data name="IPs agressores mais frequentes" xml:space="preserve">
+    <value>Most frequent attacking IPs</value>
+  </data>
+  <data name="IPs bloqueados no período que continuam bloqueados agora." xml:space="preserve">
+    <value>IPs blocked in the period that are still blocked now.</value>
+  </data>
+  <data name="Já existe uma lista com este nome." xml:space="preserve">
+    <value>A list with this name already exists.</value>
+  </data>
+  <data name="Limite de entradas" xml:space="preserve">
+    <value>Entry limit</value>
+  </data>
+  <data name="Linha {0}" xml:space="preserve">
+    <value>Line {0}</value>
+  </data>
+  <data name="Listas do catálogo não podem ser excluídas. Use o modo Desativada." xml:space="preserve">
+    <value>Built-in lists cannot be deleted. Use the Disabled mode.</value>
+  </data>
+  <data name="Modo inicial" xml:space="preserve">
+    <value>Initial mode</value>
+  </data>
+  <data name="Motivo obrigatorio." xml:space="preserve">
+    <value>Reason is required.</value>
+  </data>
+  <data name="Nova lista" xml:space="preserve">
+    <value>New list</value>
+  </data>
+  <data name="Nova lista externa" xml:space="preserve">
+    <value>New external list</value>
+  </data>
+  <data name="O arquivo não tem nenhuma linha com faixa." xml:space="preserve">
+    <value>The file has no line with a range.</value>
+  </data>
+  <data name="O arquivo passa de 1 MB. Divida em arquivos menores." xml:space="preserve">
+    <value>The file is larger than 1 MB. Split it into smaller files.</value>
+  </data>
+  <data name="O arquivo passa do limite de 5.000 linhas. Divida em arquivos menores." xml:space="preserve">
+    <value>The file exceeds the 5,000-line limit. Split it into smaller files.</value>
+  </data>
+  <data name="O endereço acessado não existe." xml:space="preserve">
+    <value>The requested address does not exist.</value>
+  </data>
+  <data name="O intervalo deve estar entre 1 e 168 horas." xml:space="preserve">
+    <value>The interval must be between 1 and 168 hours.</value>
+  </data>
+  <data name="O limite de entradas deve estar entre 1 e 200.000." xml:space="preserve">
+    <value>The entry limit must be between 1 and 200,000.</value>
+  </data>
+  <data name="Os eventos são mantidos por {0} dias (Configurações). Para períodos maiores, os números de eventos cobrem só esse intervalo; os bloqueios cobrem o período inteiro." xml:space="preserve">
+    <value>Events are kept for {0} days (Settings). For longer periods, event numbers cover only that interval; blocks cover the whole period.</value>
+  </data>
+  <data name="Página não encontrada" xml:space="preserve">
+    <value>Page not found</value>
+  </data>
+  <data name="Países com eventos suspeitos" xml:space="preserve">
+    <value>Countries with suspicious events</value>
+  </data>
+  <data name="Países com mais bloqueios" xml:space="preserve">
+    <value>Countries with most blocks</value>
+  </data>
+  <data name="Período" xml:space="preserve">
+    <value>Period</value>
+  </data>
+  <data name="Personalizada" xml:space="preserve">
+    <value>Custom</value>
+  </data>
+  <data name="Selecionar todos" xml:space="preserve">
+    <value>Select all</value>
+  </data>
+  <data name="Spamhaus DROP (JSON)" xml:space="preserve">
+    <value>Spamhaus DROP (JSON)</value>
+  </data>
+  <data name="Texto (um IP ou faixa por linha)" xml:space="preserve">
+    <value>Text (one IP or range per line)</value>
+  </data>
+  <data name="Texto: um IP, CIDR ou intervalo por linha (linhas com # ou ; são comentários). Comece em Avaliação e confira as coincidências antes de ativar: a lista passa pela mesma proteção (lista branca, servidor e administradores)." xml:space="preserve">
+    <value>Text: one IP, CIDR or range per line (lines starting with # or ; are comments). Start in Evaluation and check the matches before activating: the list goes through the same protection (whitelist, server and administrators).</value>
+  </data>
+  <data name="todo o período" xml:space="preserve">
+    <value>the whole period</value>
+  </data>
+  <data name="Todos os países" xml:space="preserve">
+    <value>All countries</value>
+  </data>
+  <data name="Todos os status" xml:space="preserve">
+    <value>All statuses</value>
+  </data>
+  <data name="Tudo" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="URLs (uma por linha, somente HTTPS)" xml:space="preserve">
+    <value>URLs (one per line, HTTPS only)</value>
+  </data>
+  <data name="URLs mais atacadas" xml:space="preserve">
+    <value>Most attacked URLs</value>
+  </data>
+  <data name="Muitas tentativas. Aguarde um minuto e tente novamente." xml:space="preserve">
+    <value>Too many attempts. Wait a minute and try again.</value>
+  </data>
+  <data name="Texto muito longo." xml:space="preserve">
+    <value>Text is too long.</value>
+  </data>
+  <data name="Lista externa criada. O motor baixa a lista em até 1 minuto." xml:space="preserve">
+    <value>External list created. The engine downloads it within 1 minute.</value>
+  </data>
+  <data name="Lista externa excluída." xml:space="preserve">
+    <value>External list deleted.</value>
+  </data>
+  <data name="{0} dias" xml:space="preserve">
+    <value>{0} days</value>
+  </data>
+  <data name="IP inválido." xml:space="preserve">
+    <value>Invalid IP.</value>
+  </data>
+  <data name="Lista branca: importação CSV" xml:space="preserve">
+    <value>Whitelist: CSV import</value>
+  </data>
+  <data name="Lista negra: importação CSV" xml:space="preserve">
+    <value>Blacklist: CSV import</value>
+  </data>
+  <data name="Lista externa criada" xml:space="preserve">
+    <value>External list created</value>
+  </data>
+  <data name="Lista externa excluída" xml:space="preserve">
+    <value>External list deleted</value>
   </data>
 </root>

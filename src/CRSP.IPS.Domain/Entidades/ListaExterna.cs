@@ -26,12 +26,17 @@ public class ListaExterna
     public int Removidas { get; private set; }
     public string? UltimoErro { get; private set; }
 
+    /// <summary>Cadastrada pelo administrador (pode ser excluida). As do catalogo sao recriadas a cada inicializacao.</summary>
+    public bool Personalizada { get; private set; }
+
     protected ListaExterna() { }
 
     public static ListaExterna Criar(
         string nome, string? descricao, IEnumerable<string> urls, FormatoListaExterna formato,
-        int intervaloHoras, int limiteEntradas, ModoListaExterna modo)
+        int intervaloHoras, int limiteEntradas, ModoListaExterna modo, bool personalizada = false)
     {
+        if (string.IsNullOrWhiteSpace(nome))
+            throw new ArgumentException("Informe o nome da lista.");
         var listaUrls = urls.Select(u => u.Trim()).Where(u => u.Length > 0).ToList();
         if (listaUrls.Count == 0 || listaUrls.Any(u => !Uri.TryCreate(u, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps))
             throw new ArgumentException("Informe ao menos uma URL HTTPS válida.");
@@ -47,7 +52,8 @@ public class ListaExterna
             IntervaloHoras = intervaloHoras,
             LimiteEntradas = Math.Max(1, limiteEntradas),
             Modo = modo,
-            AtualizacaoSolicitada = modo != ModoListaExterna.Desativada
+            AtualizacaoSolicitada = modo != ModoListaExterna.Desativada,
+            Personalizada = personalizada
         };
     }
 

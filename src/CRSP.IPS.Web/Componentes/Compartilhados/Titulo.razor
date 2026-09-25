@@ -1,0 +1,8 @@
+@* Titulo da aba do navegador e do cabecalho do layout. *@
+<PageTitle>@Texto · CRSPIPS</PageTitle>
+<SectionContent SectionName="@LayoutPrincipal.SecaoTitulo">@Texto</SectionContent>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Texto { get; set; } = string.Empty;
+}

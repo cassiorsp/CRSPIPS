@@ -1,0 +1,377 @@
+@page "/Configuracoes"
+@using System.ComponentModel.DataAnnotations
+
+<Titulo Texto="@T["Configurações"]" />
+
+<NavigationLock ConfirmExternalNavigation="_alterado" OnBeforeInternalNavigation="ConfirmarSaidaAsync" />
+
+<div class="row g-3">
+    <div class="col-xl-7">
+        <EditForm EditContext="_contextoMotor" OnValidSubmit="SalvarMotorAsync" novalidate>
+            <DataAnnotationsValidator />
+            @if (_erroMotor is not null)
+            {
+                <div class="alert alert-danger py-2 small">@T[_erroMotor]</div>
+            }
+            <div class="card cartao mb-3 @(_motor.ModoSimulacao ? "border-info" : "border-danger")">
+                <div class="card-body d-flex gap-3 align-items-start">
+                    <div class="form-check form-switch fs-5 m-0">
+                        <InputCheckbox id="modoSimulacao" class="form-check-input" role="switch" @bind-Value="_motor.ModoSimulacao" />
+                    </div>
+                    <div>
+                        <label class="fw-semibold" for="modoSimulacao">@T["Modo simulação"]</label>
+                        <div class="small text-body-secondary">
+                            @T["Ligado: os bloqueios automáticos são apenas registrados (marcados como Simulado). Desligado: são aplicados no Windows Firewall. Use a simulação por alguns dias para calibrar as regras."]
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card cartao mb-3">
+                <div class="card-header">@T["Punição"]</div>
+                <div class="card-body row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label" for="tempos">@T["Tempos de bloqueio progressivo"]</label>
+                        <InputText id="tempos" class="form-control fonte-mono" @bind-Value="_motor.TemposBloqueio" />
+                        <div class="form-text">@T["Um tempo por nível, separados por vírgula (m = minutos, h = horas, d = dias). Ex: 1h, 24h, 7d, 30d. A 1ª ocorrência usa o 1º tempo; cada reincidência sobe um nível."]</div>
+                        <MensagemValidacao Para="() => _motor.TemposBloqueio" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="janelaReincidencia">@T["Janela de reincidência (dias)"]</label>
+                        <InputNumber id="janelaReincidencia" class="form-control" min="1" max="365" @bind-Value="_motor.JanelaReincidenciaDias" />
+                        <div class="form-text">@T["Bloqueios anteriores dentro deste período contam como reincidência."]</div>
+                        <MensagemValidacao Para="() => _motor.JanelaReincidenciaDias" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="card cartao mb-3">
+                <div class="card-header">@T["Fontes monitoradas"]</div>
+                <div class="card-body">
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-md-5">
+                            <div class="form-check form-switch">
+                                <InputCheckbox id="monitorarIis" class="form-check-input" role="switch" @bind-Value="_motor.MonitorarLogIis" />
+                                <label class="form-check-label" for="monitorarIis">@T["Monitorar logs do IIS"]</label>
+                            </div>
+                        </div>
+                        <div class="col-md-7">
+                            <InputText class="form-control form-control-sm fonte-mono" aria-label="@T["Pasta de logs do IIS"]" @bind-Value="_motor.CaminhoLogIis" />
+                            <MensagemValidacao Para="() => _motor.CaminhoLogIis" />
+                        </div>
+                    </div>
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-md-5">
+                            <div class="form-check form-switch">
+                                <InputCheckbox id="monitorarHttpErr" class="form-check-input" role="switch" @bind-Value="_motor.MonitorarHttpErr" />
+                                <label class="form-check-label" for="monitorarHttpErr">@T["Monitorar HTTPERR"]</label>
+                            </div>
+                        </div>
+                        <div class="col-md-7">
+                            <InputText class="form-control form-control-sm fonte-mono" aria-label="@T["Pasta do HTTPERR"]" @bind-Value="_motor.CaminhoHttpErr" />
+                            <MensagemValidacao Para="() => _motor.CaminhoHttpErr" />
+                        </div>
+                    </div>
+                    <div class="form-check form-switch">
+                        <InputCheckbox id="monitorarEventos" class="form-check-input" role="switch" @bind-Value="_motor.MonitorarEventosWindows" />
+                        <label class="form-check-label" for="monitorarEventos">@T["Monitorar eventos do Windows (RDP, SQL Server)"]</label>
+                        <div class="small text-body-secondary">@T["Eventos 4625 (Security), 140 (RdpCoreTS) e 18456 (SQL Server). Para o evento 4625 trazer o IP, a auditoria de logon com falha deve estar habilitada (padrão no Windows Server)."]</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card cartao">
+                <div class="card-header">@T["Dados"]</div>
+                <div class="card-body campo-portas">
+                    <label class="form-label" for="retencao">@T["Retenção de eventos (dias)"]</label>
+                    <InputNumber id="retencao" class="form-control" min="1" max="365" @bind-Value="_motor.RetencaoEventosDias" />
+                    <div class="form-text">@T["Amostras de eventos mais antigas são apagadas. O histórico de bloqueios é mantido."]</div>
+                    <MensagemValidacao Para="() => _motor.RetencaoEventosDias" />
+                </div>
+            </div>
+
+            <div class="mt-3 d-flex align-items-center gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@_processando"><i class="bi bi-save"></i> @T["Salvar configurações do motor"]</button>
+                @if (_alterado)
+                {
+                    <span class="small text-warning-emphasis"><i class="bi bi-exclamation-circle"></i> @T["Alterações não salvas"]</span>
+                }
+            </div>
+        </EditForm>
+
+        <div class="card cartao mt-4">
+            <div class="card-header"><i class="bi bi-file-earmark-text me-1"></i>@T["Leitura das fontes"]</div>
+            <div class="card-body small text-body-secondary pb-2">
+                @T["Arquivos e canais que o motor está acompanhando. Se a última leitura de uma fonte ativa não avança, ela não está sendo lida."]
+            </div>
+            <div class="table-responsive tabela-rolagem">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>@T["Fonte"]</th><th>@T["Arquivo ou canal"]</th><th class="text-end">@T["Posição"]</th><th>@T["Última leitura"]</th></tr></thead>
+                    <tbody>
+                    @foreach (var leitura in _leituras)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@(leitura.Fonte is { } fonte ? T[Exibicao.Rotulo(fonte)] : T["Desconhecida"])</td>
+                            <td class="fonte-mono small text-break">@leitura.Origem</td>
+                            <td class="text-end fonte-mono small">@leitura.Posicao.ToString("N0")</td>
+                            <td class="small text-nowrap">@Exibicao.DataHora(leitura.AtualizadaEmUtc)</td>
+                        </tr>
+                    }
+                    @if (_leituras.Count == 0)
+                    {
+                        <tr><td colspan="4" class="text-body-secondary">@T["Nenhuma fonte lida ainda. Verifique se o serviço CRSPIPS está em execução."]</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card cartao mt-4 border-danger">
+            <div class="card-header text-danger"><i class="bi bi-trash me-1"></i>@T["Manutenção: limpar histórico"]</div>
+            <div class="card-body small">
+                <p>@T["Apaga todos os eventos registrados e o histórico de bloqueios (simulados, expirados e liberados). Use ao terminar a calibração para recomeçar as estatísticas e os níveis de reincidência."]</p>
+                <p class="text-body-secondary">@T["São mantidos: usuários, regras, listas, configurações, credenciais MaxMind e a auditoria. Os logs já lidos não são lidos de novo."]</p>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="manterBloqueiosAtivos" @bind="_manterBloqueiosAtivos" />
+                    <label class="form-check-label" for="manterBloqueiosAtivos">@T["Manter os bloqueios ativos reais (IPs que estão bloqueados no firewall agora)"]</label>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="confirmadoLimpeza" @bind="_confirmadoLimpeza" />
+                    <label class="form-check-label" for="confirmadoLimpeza">@T["Entendo que eventos e bloqueios apagados não podem ser recuperados"]</label>
+                </div>
+                <button type="button" class="btn btn-outline-danger btn-sm" disabled="@(!_confirmadoLimpeza || _processando)" @onclick="LimparHistoricoAsync"><i class="bi bi-trash"></i> @T["Limpar histórico"]</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-5">
+        <div class="card cartao">
+            <div class="card-header"><i class="bi bi-geo-alt me-1"></i>@T["Geolocalização (MaxMind GeoLite2)"]</div>
+            @if (_statusGeo is { } geo && _geoIp is { } geoIp)
+            {
+                <div class="card-body small">
+                    <ul class="list-unstyled mb-3">
+                        <li class="mb-2">
+                            <i class="bi @(geo.CidadeEncontrada ? "bi-check-circle text-success" : "bi-x-circle text-danger")"></i>
+                            <strong>GeoLite2-City</strong> — @T["país e cidade"]
+                            <div class="fonte-mono text-break text-body-secondary">@geo.CaminhoCidade</div>
+                            @if (geo.CidadeAtualizadaEm is not null)
+                            {
+                                <div class="text-body-secondary">@T["Atualizada em"] @Exibicao.DataHora(geo.CidadeAtualizadaEm)</div>
+                            }
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi @(geo.AsnEncontrada ? "bi-check-circle text-success" : "bi-x-circle text-danger")"></i>
+                            <strong>GeoLite2-ASN</strong> — @T["provedor / datacenter"]
+                            <div class="fonte-mono text-break text-body-secondary">@geo.CaminhoAsn</div>
+                        </li>
+                        <li>
+                            <i class="bi @(geo.PaisesCsvEncontrado ? "bi-check-circle text-success" : "bi-x-circle text-danger")"></i>
+                            <strong>GeoLite2-Country CSV</strong> — @T["faixas por país (política de países no firewall)"]
+                            <div class="fonte-mono text-break text-body-secondary">@geo.CaminhoPaisesCsv</div>
+                        </li>
+                    </ul>
+
+                    <hr />
+                    <h3 class="h6 mb-2"><i class="bi bi-cloud-download me-1"></i>@T["Download automático"]</h3>
+
+                    @if (geoIp.UltimaVerificacaoEm is not null)
+                    {
+                        <div class="alert @(geoIp.UltimoResultadoSucesso ? "alert-success" : "alert-danger") py-2 small">
+                            <strong>@Exibicao.DataHora(geoIp.UltimaVerificacaoEm):</strong> @T[geoIp.UltimoResultado ?? string.Empty]
+                            @if (geoIp.UltimaAtualizacaoEm is not null)
+                            {
+                                <div class="text-body-secondary">@T["Último download:"] @Exibicao.DataHora(geoIp.UltimaAtualizacaoEm)</div>
+                            }
+                        </div>
+                    }
+                    @if (geoIp.AtualizacaoSolicitada)
+                    {
+                        <div class="alert alert-info py-2 small d-flex align-items-center gap-2">
+                            <span class="spinner-border spinner-border-sm"></span>
+                            <span>@T["Download pendente: o motor processa em até 15 segundos."]</span>
+                            <button class="btn btn-sm btn-link p-0 ms-auto" type="button" @onclick="CarregarGeoIpAsync"><i class="bi bi-arrow-clockwise"></i> @T["Atualizar"]</button>
+                        </div>
+                    }
+
+                    <div class="row g-2">
+                        <div class="col-md-5">
+                            <label class="form-label" for="contaId">@T["ID da conta"]</label>
+                            <input class="form-control fonte-mono" id="contaId" inputmode="numeric" placeholder="123456" autocomplete="off" @bind="_contaId" />
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label" for="chaveLicenca">@T["Chave de licença"]</label>
+                            <input class="form-control fonte-mono" type="password" id="chaveLicenca" autocomplete="new-password"
+                                   placeholder="@(geoIp.PossuiCredenciais ? $"•••• {geoIp.FinalChave}" : "")" @bind="_chaveLicenca" />
+                            @if (geoIp.PossuiCredenciais)
+                            {
+                                <div class="form-text">@T["Deixe em branco para manter a chave atual."]</div>
+                            }
+                        </div>
+                    </div>
+                    <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="atualizacaoAutomatica" @bind="_atualizacaoAutomatica" />
+                        <label class="form-check-label" for="atualizacaoAutomatica">@T["Verificar atualizações automaticamente (a cada 24 horas)"]</label>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button type="button" class="btn btn-primary btn-sm" disabled="@_processando" @onclick="SalvarGeoIpAsync"><i class="bi bi-save"></i> @T["Salvar e baixar"]</button>
+                        @if (geoIp.PossuiCredenciais)
+                        {
+                            <button type="button" class="btn btn-outline-primary btn-sm" disabled="@_processando" @onclick="AtualizarGeoIpAsync"><i class="bi bi-arrow-repeat"></i> @T["Atualizar agora"]</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" disabled="@_processando" @onclick="RemoverGeoIpAsync"><i class="bi bi-trash"></i> @T["Remover credenciais"]</button>
+                        }
+                    </div>
+
+                    <div class="text-body-secondary mt-3">
+                        @T["Crie uma conta gratuita em maxmind.com (GeoLite2) e gere uma chave em Account > Manage License Keys. Não use a senha da conta: a chave pode ser revogada a qualquer momento e é guardada criptografada neste servidor."]
+                        <a href="https://www.maxmind.com/en/geolite2/signup" target="_blank" rel="noopener noreferrer">maxmind.com <i class="bi bi-box-arrow-up-right"></i></a>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private DadosMotor _motor = new();
+    private EditContext _contextoMotor = null!;
+    private StatusBaseGeo? _statusGeo;
+    private ConfiguracaoGeoIp? _geoIp;
+    private IReadOnlyList<LeituraFonte> _leituras = [];
+    private string? _erroMotor;
+    private bool _alterado;
+    private bool _processando;
+    private bool _manterBloqueiosAtivos = true;
+    private bool _confirmadoLimpeza;
+    private string? _contaId;
+    private string? _chaveLicenca;
+    private bool _atualizacaoAutomatica = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarMotorAsync();
+        await CarregarGeoIpAsync();
+    }
+
+    private async Task CarregarMotorAsync()
+    {
+        var configuracao = await Servicos.ExecutarAsync((ServicoConfiguracao s) => s.ObterAsync());
+        _motor = new DadosMotor
+        {
+            ModoSimulacao = configuracao.ModoSimulacao,
+            TemposBloqueio = configuracao.TemposBloqueio,
+            JanelaReincidenciaDias = configuracao.JanelaReincidenciaDias,
+            MonitorarLogIis = configuracao.MonitorarLogIis,
+            CaminhoLogIis = configuracao.CaminhoLogIis,
+            MonitorarHttpErr = configuracao.MonitorarHttpErr,
+            CaminhoHttpErr = configuracao.CaminhoHttpErr,
+            MonitorarEventosWindows = configuracao.MonitorarEventosWindows,
+            RetencaoEventosDias = configuracao.RetencaoEventosDias
+        };
+        _contextoMotor = new EditContext(_motor);
+        _contextoMotor.OnFieldChanged += (_, _) => _alterado = true;
+        _alterado = false;
+    }
+
+    private async Task CarregarGeoIpAsync()
+    {
+        _statusGeo = await Servicos.ExecutarAsync((ServicoConfiguracao s) => Task.FromResult(s.ObterStatusGeo()));
+        _geoIp = await Servicos.ExecutarAsync((ServicoGeoIp s) => s.ObterAsync());
+        _leituras = await Servicos.ExecutarAsync((ServicoConfiguracao s) => s.ListarLeiturasAsync());
+        _contaId = _geoIp.ContaId;
+        _atualizacaoAutomatica = _geoIp.AtualizacaoAutomatica;
+        _chaveLicenca = null;
+    }
+
+    private async Task SalvarMotorAsync()
+    {
+        _processando = true;
+        try
+        {
+            var resultado = await Servicos.ExecutarAsync((ServicoConfiguracao s) => s.SalvarMotorAsync(new DadosConfiguracaoMotor(
+                _motor.ModoSimulacao, _motor.TemposBloqueio, _motor.JanelaReincidenciaDias,
+                _motor.MonitorarLogIis, _motor.CaminhoLogIis, _motor.MonitorarHttpErr, _motor.CaminhoHttpErr,
+                _motor.MonitorarEventosWindows, _motor.RetencaoEventosDias)));
+
+            _erroMotor = resultado.Sucesso ? null : resultado.Erro;
+            if (Avisos.Mostrar(resultado, "Configurações salvas. O motor passa a usar os novos valores no próximo ciclo."))
+                await CarregarMotorAsync();
+        }
+        finally
+        {
+            _processando = false;
+        }
+    }
+
+    private Task SalvarGeoIpAsync() => ExecutarAcaoAsync(
+        () => Servicos.ExecutarAsync((ServicoGeoIp s) => s.SalvarCredenciaisAsync(_contaId ?? string.Empty, _chaveLicenca, _atualizacaoAutomatica)),
+        "Credenciais MaxMind salvas. O motor inicia o download em instantes.");
+
+    private Task AtualizarGeoIpAsync() => ExecutarAcaoAsync(
+        () => Servicos.ExecutarAsync((ServicoGeoIp s) => s.SolicitarAtualizacaoAsync()),
+        "Atualização solicitada. O motor inicia o download em instantes.");
+
+    private async Task RemoverGeoIpAsync()
+    {
+        if (!await ConfirmarAsync(T["Remover as credenciais MaxMind? As bases atuais continuam funcionando, mas deixam de ser atualizadas."]))
+            return;
+        await ExecutarAcaoAsync(() => Servicos.ExecutarAsync((ServicoGeoIp s) => s.RemoverCredenciaisAsync()), "Credenciais MaxMind removidas.");
+    }
+
+    private async Task LimparHistoricoAsync()
+    {
+        if (!await ConfirmarAsync(T["Limpar o histórico agora? Esta ação não pode ser desfeita."]))
+            return;
+        await ExecutarAcaoAsync(
+            async () => await Servicos.ExecutarAsync((ServicoHistorico s) => s.LimparAsync(_manterBloqueiosAtivos)),
+            "Histórico limpo. Os detalhes da limpeza estão na Auditoria.");
+        _confirmadoLimpeza = false;
+    }
+
+    /// <summary>Acoes do lado direito e de manutencao: nao recarregam o formulario do motor (alteracoes nao salvas continuam).</summary>
+    private async Task ExecutarAcaoAsync(Func<Task<Resultado>> acao, string mensagemSucesso)
+    {
+        _processando = true;
+        try
+        {
+            Avisos.Mostrar(await acao(), mensagemSucesso);
+            await CarregarGeoIpAsync();
+        }
+        finally
+        {
+            _processando = false;
+        }
+    }
+
+    private async Task ConfirmarSaidaAsync(LocationChangingContext contexto)
+    {
+        if (_alterado && !await ConfirmarAsync(T["Há alterações não salvas nas configurações do motor. Elas serão perdidas. Continuar?"]))
+            contexto.PreventNavigation();
+    }
+
+    private sealed class DadosMotor
+    {
+        public bool ModoSimulacao { get; set; }
+
+        [Required(ErrorMessage = "Campo obrigatório.")]
+        public string TemposBloqueio { get; set; } = string.Empty;
+
+        [Range(1, 365, ErrorMessage = "Valor fora do intervalo permitido.")]
+        public int JanelaReincidenciaDias { get; set; }
+
+        public bool MonitorarLogIis { get; set; }
+
+        [Required(ErrorMessage = "Campo obrigatório.")]
+        public string CaminhoLogIis { get; set; } = string.Empty;
+
+        public bool MonitorarHttpErr { get; set; }
+
+        [Required(ErrorMessage = "Campo obrigatório.")]
+        public string CaminhoHttpErr { get; set; } = string.Empty;
+
+        public bool MonitorarEventosWindows { get; set; }
+
+        [Range(1, 365, ErrorMessage = "Valor fora do intervalo permitido.")]
+        public int RetencaoEventosDias { get; set; }
+    }
+}

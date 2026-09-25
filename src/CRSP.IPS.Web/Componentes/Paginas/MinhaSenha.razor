@@ -1,0 +1,74 @@
+@page "/Conta/Senha"
+@using System.ComponentModel.DataAnnotations
+
+<Titulo Texto="@T["Alterar minha senha"]" />
+
+<div class="card cartao cartao-formulario">
+    <div class="card-body">
+        <EditForm Model="_dados" OnValidSubmit="SalvarAsync" novalidate>
+            <DataAnnotationsValidator />
+            @if (_erro is not null)
+            {
+                <div class="alert alert-danger py-2 small">@T[_erro]</div>
+            }
+            <div class="mb-3">
+                <label class="form-label" for="senhaAtual">@T["Senha atual"]</label>
+                <InputText id="senhaAtual" type="password" class="form-control" autocomplete="current-password" @bind-Value="_dados.SenhaAtual" />
+                <MensagemValidacao Para="() => _dados.SenhaAtual" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="novaSenha">@T["Nova senha"]</label>
+                <InputText id="novaSenha" type="password" class="form-control" autocomplete="new-password" @bind-Value="_dados.NovaSenha" />
+                <div class="form-text">@T["Mínimo de 10 caracteres, com letras e números."]</div>
+                <MensagemValidacao Para="() => _dados.NovaSenha" />
+            </div>
+            <div class="mb-4">
+                <label class="form-label" for="confirmarSenha">@T["Confirmar senha"]</label>
+                <InputText id="confirmarSenha" type="password" class="form-control" autocomplete="new-password" @bind-Value="_dados.ConfirmarSenha" />
+                <MensagemValidacao Para="() => _dados.ConfirmarSenha" />
+            </div>
+            <button type="submit" class="btn btn-primary" disabled="@_processando">@T["Salvar"]</button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private DadosSenha _dados = new();
+    private string? _erro;
+    private bool _processando;
+
+    private async Task SalvarAsync()
+    {
+        _processando = true;
+        try
+        {
+            var id = await ObterIdUsuarioAsync();
+            var resultado = await Servicos.ExecutarAsync((ServicoUsuarios s) => s.AlterarPropriaSenhaAsync(id, _dados.SenhaAtual, _dados.NovaSenha));
+            if (!resultado.Sucesso)
+            {
+                _erro = resultado.Erro;
+                return;
+            }
+
+            Avisos.SucessoAposNavegar("Senha alterada.");
+            Navegacao.NavigateTo("/");
+        }
+        finally
+        {
+            _processando = false;
+        }
+    }
+
+    private sealed class DadosSenha
+    {
+        [Required(ErrorMessage = "Campo obrigatório.")]
+        public string SenhaAtual { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Campo obrigatório.")]
+        public string NovaSenha { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Campo obrigatório.")]
+        [Compare(nameof(NovaSenha), ErrorMessage = "As senhas não conferem.")]
+        public string ConfirmarSenha { get; set; } = string.Empty;
+    }
+}

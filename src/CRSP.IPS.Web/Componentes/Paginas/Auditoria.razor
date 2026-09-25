@@ -1,0 +1,69 @@
+@page "/Auditoria"
+
+<Titulo Texto="@T["Auditoria"]" />
+
+<div class="pagina-cheia">
+<div class="card cartao cartao-cheio">
+    <div class="card-body border-bottom">
+        <form class="d-flex gap-2 campo-busca" @onsubmit="Buscar" @onsubmit:preventDefault>
+            <input class="form-control" placeholder="@T["Usuário, ação, IP..."]" aria-label="@T["Buscar"]" @bind="_busca" />
+            <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+        </form>
+    </div>
+    <div class="table-responsive tabela-rolagem">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead><tr><th>@T["Quando"]</th><th>@T["Usuário"]</th><th>@T["Origem"]</th><th>@T["Ação"]</th><th>@T["Alvo"]</th><th>@T["Detalhe"]</th></tr></thead>
+            <tbody>
+            @* Rolagem infinita: carrega os registros conforme a tabela rola (sem paginacao). *@
+            <Virtualize @ref="_linhas" ItemsProvider="CarregarLinhasAsync" ItemSize="29" OverscanCount="20" SpacerElement="tr" Context="registro">
+                <ItemContent>
+                    <tr>
+                        <td class="small text-nowrap">@Exibicao.DataHora(registro.OcorridoEm)</td>
+                        <td>@registro.Usuario</td>
+                        <td class="small fonte-mono">@registro.IpOrigem</td>
+                        <td>@T[registro.Acao]</td>
+                        <td class="fonte-mono small">@registro.Alvo</td>
+                        <td class="small text-break">@registro.Detalhe</td>
+                    </tr>
+                </ItemContent>
+                <Placeholder><tr><td colspan="6">&nbsp;</td></tr></Placeholder>
+                <EmptyContent><tr><td colspan="6" class="text-body-secondary">@T["Nenhum registro."]</td></tr></EmptyContent>
+            </Virtualize>
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer small text-body-secondary">@T["{0} registro(s)", _total]</div>
+</div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] private string? Busca { get; set; }
+
+    private Virtualize<RegistroAuditoria>? _linhas;
+    private string? _busca;
+    private int _total;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _busca = Busca;
+        if (_linhas is not null)
+            await _linhas.RefreshDataAsync();
+    }
+
+    private async ValueTask<ItemsProviderResult<RegistroAuditoria>> CarregarLinhasAsync(ItemsProviderRequest pedido)
+    {
+        var fatia = await Servicos.ExecutarAsync((ServicoAuditoria s) => s.PesquisarAsync(Busca, pedido.StartIndex, pedido.Count));
+        if (_total != fatia.Total)
+        {
+            _total = fatia.Total;
+            StateHasChanged();
+        }
+        return new ItemsProviderResult<RegistroAuditoria>(fatia.Itens, fatia.Total);
+    }
+
+    private void Buscar() =>
+        Navegacao.NavigateTo(Navegacao.GetUriWithQueryParameters("/Auditoria", new Dictionary<string, object?>
+        {
+            ["Busca"] = string.IsNullOrWhiteSpace(_busca) ? null : _busca.Trim()
+        }));
+}

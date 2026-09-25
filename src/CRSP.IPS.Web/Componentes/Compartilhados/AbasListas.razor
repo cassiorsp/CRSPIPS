@@ -1,0 +1,14 @@
+@* Navegacao entre lista branca, lista negra e listas externas. *@
+@inject IStringLocalizer<Textos> T
+
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item"><a class="nav-link @Ativa("Branca")" href="/Listas?tipo=Branca"><i class="bi bi-shield-check me-1"></i>@T["Lista branca"]</a></li>
+    <li class="nav-item"><a class="nav-link @Ativa("Negra")" href="/Listas?tipo=Negra"><i class="bi bi-slash-circle me-1"></i>@T["Lista negra"]</a></li>
+    <li class="nav-item"><a class="nav-link @Ativa("Externas")" href="/Listas/Externas"><i class="bi bi-cloud-download me-1"></i>@T["Listas externas"]</a></li>
+</ul>
+
+@code {
+    [Parameter, EditorRequired] public string Atual { get; set; } = string.Empty;
+
+    private string Ativa(string aba) => aba == Atual ? "active" : string.Empty;
+}

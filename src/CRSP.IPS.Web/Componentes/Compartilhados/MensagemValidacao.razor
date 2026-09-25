@@ -1,0 +1,20 @@
+@* Mensagens de validacao traduzidas (as mensagens dos atributos sao chaves pt-BR). *@
+@implements IDisposable
+@inject IStringLocalizer<Textos> T
+
+@foreach (var mensagem in EditContext.GetValidationMessages(FieldIdentifier.Create(Para)))
+{
+    <div class="text-danger small">@T[mensagem]</div>
+}
+
+@code {
+    [CascadingParameter] private EditContext EditContext { get; set; } = null!;
+
+    [Parameter, EditorRequired] public System.Linq.Expressions.Expression<Func<object?>> Para { get; set; } = null!;
+
+    protected override void OnInitialized() => EditContext.OnValidationStateChanged += AoValidar;
+
+    private void AoValidar(object? remetente, ValidationStateChangedEventArgs args) => StateHasChanged();
+
+    public void Dispose() => EditContext.OnValidationStateChanged -= AoValidar;
+}

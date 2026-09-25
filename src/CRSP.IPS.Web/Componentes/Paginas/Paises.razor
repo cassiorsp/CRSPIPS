@@ -1,0 +1,196 @@
+@page "/Paises"
+@inject IProvedorFaixasPais FaixasPais
+@using System.Text
+@using CRSP.IPS.Application.Abstracoes
+
+<Titulo Texto="@T["Política de países"]" />
+
+<div class="row g-3">
+    <div class="col-xl-7">
+        <div class="card cartao mb-3">
+            <div class="card-header">@T["Modo"]</div>
+            <div class="card-body">
+                <div class="row g-2">
+                    @foreach (var (modo, icone, descricao) in Modos)
+                    {
+                        <div class="col-md-4">
+                            <input type="radio" class="btn-check" name="modo" id="modo-@modo" checked="@(_modo == modo)" @onchange="() => _modo = modo" />
+                            <label class="btn btn-outline-primary w-100 h-100 text-start opcao-cartao" for="modo-@modo">
+                                <i class="bi @icone fs-5"></i>
+                                <div class="fw-semibold">@T[Exibicao.Rotulo(modo)]</div>
+                                <div class="small">@T[descricao]</div>
+                            </label>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="card cartao mb-3">
+            <div class="card-header">@T["Como aplicar"]</div>
+            <div class="card-body">
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="radio" name="aplicacao" id="aplicacaoSuspeitos" checked="@(_aplicacao == AplicacaoPoliticaPaises.ReativaSuspeitos)" @onchange="() => _aplicacao = AplicacaoPoliticaPaises.ReativaSuspeitos" />
+                    <label class="form-check-label" for="aplicacaoSuspeitos">
+                        <strong>@T["Reativa (somente eventos suspeitos)"]</strong> <span class="badge text-bg-success">@T["Recomendado"]</span>
+                        <div class="small text-body-secondary">@T["O IP de país não permitido é bloqueado na primeira tentativa suspeita (login RDP/SQL com falha, varredura, injeção), sem esperar o limite da regra. Visitantes normais, buscadores (Google, Bing), Let's Encrypt e integrações não são afetados."]</div>
+                    </label>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="radio" name="aplicacao" id="aplicacaoReativa" checked="@(_aplicacao == AplicacaoPoliticaPaises.Reativa)" @onchange="() => _aplicacao = AplicacaoPoliticaPaises.Reativa" />
+                    <label class="form-check-label" for="aplicacaoReativa">
+                        <strong>@T["Reativa (todo o tráfego)"]</strong>
+                        <div class="small text-body-secondary">@T["O IP é bloqueado no primeiro acesso de qualquer tipo vindo de país não permitido, inclusive visitas normais aos sites."]</div>
+                        <div class="small text-danger"><i class="bi bi-exclamation-triangle"></i> @T["Bloqueia também Googlebot, Bingbot, a validação de certificados do Let's Encrypt e integrações hospedadas fora do país (Azure, AWS)."]</div>
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="aplicacao" id="aplicacaoFirewall" checked="@(_aplicacao == AplicacaoPoliticaPaises.FirewallPorPortas)" @onchange="() => _aplicacao = AplicacaoPoliticaPaises.FirewallPorPortas" />
+                    <label class="form-check-label" for="aplicacaoFirewall">
+                        <strong>@T["Firewall por portas"]</strong>
+                        <div class="small text-body-secondary">@T["As faixas de IP dos países são gravadas direto no Windows Firewall para as portas informadas. Bloqueia antes de qualquer tentativa (recomendado para RDP)."]</div>
+                    </label>
+                </div>
+                <div class="mt-3 campo-portas">
+                    <label class="form-label" for="portas">@T["Portas protegidas"]</label>
+                    <input class="form-control fonte-mono" id="portas" @bind="_portas" placeholder="3389,443" />
+                    <div class="form-text">@T["Usado apenas no modo Firewall por portas. TCP e UDP."]</div>
+                </div>
+                <div class="alert alert-warning small mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    @T["Em \"Permitir somente\" + \"Firewall por portas\", as regras de permissão de outros programas nessas portas que aceitam qualquer origem são desativadas (e reativadas ao desligar a política). Lista branca, rede local e IPs de administradores continuam liberados. O Windows Firewall precisa estar com a ação padrão de entrada = Bloquear. Teste primeiro em modo simulação."]
+                </div>
+            </div>
+        </div>
+
+        <div class="card cartao">
+            <div class="card-header">@T["Situação"]</div>
+            <div class="card-body small">
+                <div class="mb-2">
+                    @if (FaixasPais.EstaDisponivel)
+                    {
+                        <span class="badge text-bg-success"><i class="bi bi-check"></i> @T["Base GeoLite2-Country (CSV) encontrada"]</span>
+                    }
+                    else
+                    {
+                        <span class="badge text-bg-warning"><i class="bi bi-exclamation-triangle"></i> @T["Base GeoLite2-Country (CSV) não encontrada: o modo Firewall por portas não será aplicado."]</span>
+                    }
+                    @if (_modoSimulacao)
+                    {
+                        <span class="badge text-bg-info"><i class="bi bi-eye"></i> @T["Modo simulação: nada é aplicado no firewall."]</span>
+                    }
+                </div>
+                <div><strong>@T["Aplicado pelo motor:"]</strong> @(_resumoAplicado ?? T["Nenhuma regra de país no firewall."])</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-5">
+        <div class="card cartao">
+            <div class="card-header d-flex align-items-center">
+                <span>@T["Países"]</span>
+                <span class="badge text-bg-primary ms-2">@_selecionados.Count</span>
+            </div>
+            <div class="card-body">
+                <input class="form-control mb-2" type="search" placeholder="@T["Filtrar países..."]" @bind="_filtro" @bind:event="oninput" />
+                <div class="lista-paises">
+                    @foreach (var (codigo, nome) in PaisesVisiveis)
+                    {
+                        <label class="item-pais" @key="codigo">
+                            <input class="form-check-input" type="checkbox" checked="@_selecionados.Contains(codigo)" @onchange="() => AlternarPais(codigo)" />
+                            <Bandeira Codigo="@codigo" />
+                            <span>@nome</span>
+                            <span class="text-body-secondary small ms-auto">@codigo</span>
+                        </label>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="mt-3">
+    <button type="button" class="btn btn-primary" disabled="@_processando" @onclick="SalvarAsync"><i class="bi bi-save"></i> @T["Salvar política"]</button>
+</div>
+
+@code {
+    private static readonly (ModoPoliticaPaises Modo, string Icone, string Descricao)[] Modos =
+    [
+        (ModoPoliticaPaises.Desativada, "bi-circle", "Nenhuma restrição por país."),
+        (ModoPoliticaPaises.BloquearListados, "bi-x-octagon", "Bloqueia somente os países selecionados."),
+        (ModoPoliticaPaises.PermitirSomenteListados, "bi-check2-circle", "Somente os países selecionados podem acessar.")
+    ];
+
+    private readonly HashSet<string> _selecionados = new(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<(string Codigo, string Nome)> _paises = [];
+    private ModoPoliticaPaises _modo;
+    private AplicacaoPoliticaPaises _aplicacao;
+    private string _portas = string.Empty;
+    private string? _filtro;
+    private bool _modoSimulacao;
+    private string? _resumoAplicado;
+    private bool _processando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var configuracao = await Servicos.ExecutarAsync((ServicoConfiguracao s) => s.ObterAsync());
+        _modo = configuracao.ModoPaises;
+        _aplicacao = configuracao.AplicacaoPaises;
+        _portas = configuracao.PortasPolitica;
+        _modoSimulacao = configuracao.ModoSimulacao;
+        _selecionados.UnionWith(configuracao.ObterPaises());
+        _resumoAplicado = (await Servicos.ExecutarAsync((IRepositorioStatusWorker r) => r.ObterAsync()))?.ResumoPoliticaPaises;
+
+        // Selecionados primeiro; a ordem nao muda ao marcar/desmarcar para a lista nao "pular".
+        _paises = Exibicao.ListarPaises().OrderByDescending(p => _selecionados.Contains(p.Codigo)).ToList();
+    }
+
+    private IEnumerable<(string Codigo, string Nome)> PaisesVisiveis
+    {
+        get
+        {
+            var termo = Normalizar(_filtro?.Trim());
+            return termo.Length == 0
+                ? _paises
+                : _paises.Where(p => Normalizar(p.Nome).Contains(termo) || p.Codigo.Contains(termo, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    private void AlternarPais(string codigo)
+    {
+        if (!_selecionados.Remove(codigo))
+            _selecionados.Add(codigo);
+    }
+
+    private async Task SalvarAsync()
+    {
+        var portas = _portas.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(p => int.TryParse(p, out var porta) ? porta : -1)
+            .ToList();
+        if (portas.Any(p => p is < 1 or > 65535))
+        {
+            Avisos.Erro("Portas inválidas. Use números separados por vírgula, ex: 3389,443.");
+            return;
+        }
+
+        _processando = true;
+        try
+        {
+            var dados = new DadosPoliticaPaises(_modo, _aplicacao, _selecionados.ToList(), portas);
+            Avisos.Mostrar(await Servicos.ExecutarAsync((ServicoConfiguracao s) => s.SalvarPoliticaPaisesAsync(dados)),
+                "Política de países salva. O motor aplica a alteração em instantes.");
+        }
+        finally
+        {
+            _processando = false;
+        }
+    }
+
+    /// <summary>Minusculas e sem acentos, para "america" encontrar "América".</summary>
+    private static string Normalizar(string? texto)
+    {
+        if (string.IsNullOrEmpty(texto))
+            return string.Empty;
+        var decomposto = texto.Normalize(NormalizationForm.FormD);
+        return new string(decomposto.Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark).ToArray()).ToLowerInvariant();
+    }
+}

@@ -1,0 +1,20 @@
+@* Barras horizontais (Chart.js), ex.: paises com mais bloqueios. *@
+@inherits GraficoBase
+
+<div class="grafico grafico-baixo"><canvas @ref="Canvas" role="img" aria-label="@RotuloSerie"></canvas></div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ItemRanking> Itens { get; set; } = [];
+    [Parameter, EditorRequired] public string RotuloSerie { get; set; } = string.Empty;
+
+    protected override string Funcao => "barras";
+
+    protected override object Versao => Itens;
+
+    protected override object MontarDados() => new
+    {
+        rotulos = Itens.Select(i => i.Rotulo),
+        valores = Itens.Select(i => i.Quantidade),
+        rotuloSerie = RotuloSerie
+    };
+}

@@ -1,0 +1,7 @@
+@inject NavigationManager Navegacao
+
+@code {
+    // Sessao expirada durante a navegacao interativa: volta ao login e retorna para a mesma tela depois.
+    protected override void OnInitialized() =>
+        Navegacao.NavigateTo($"/Conta/Entrar?ReturnUrl={Uri.EscapeDataString(Navegacao.ToBaseRelativePath(Navegacao.Uri).Insert(0, "/"))}", forceLoad: true);
+}

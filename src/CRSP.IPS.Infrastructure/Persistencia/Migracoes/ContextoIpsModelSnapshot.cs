@@ -440,6 +440,9 @@ namespace CRSP.IPS.Infrastructure.Persistencia.Migracoes
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("Personalizada")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Quantidade")
                         .HasColumnType("INTEGER");
 

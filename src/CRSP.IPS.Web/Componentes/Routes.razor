@@ -1,0 +1,9 @@
+<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Paginas.NaoEncontrada)">
+    <Found Context="dadosRota">
+        <AuthorizeRouteView RouteData="dadosRota" DefaultLayout="typeof(LayoutPrincipal)">
+            <NotAuthorized>
+                <RedirecionarLogin />
+            </NotAuthorized>
+        </AuthorizeRouteView>
+    </Found>
+</Router>

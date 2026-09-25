@@ -1,0 +1,437 @@
+@page "/Bloqueios"
+
+<Titulo Texto="@T["Bloqueios"]" />
+
+<div class="pagina-cheia">
+<div class="card cartao mb-3">
+    <div class="card-body">
+        <form class="row g-2 align-items-end" @onsubmit="Filtrar" @onsubmit:preventDefault>
+            <div class="col-md-6 col-xl-4">
+                <label class="form-label small" for="busca">@T["Buscar IP ou faixa"]</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input class="form-control fonte-mono" id="busca" @bind="_filtro.Busca" placeholder="203.0.113.7 · 203.0.113.0/24" />
+                </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <label class="form-label small" for="status">@T["Status"]</label>
+                <select class="form-select" id="status" @bind="_filtro.Status">
+                    <option value="">@T["Todos"]</option>
+                    @foreach (var valor in Enum.GetValues<StatusBloqueio>())
+                    {
+                        <option value="@valor">@T[Exibicao.Rotulo(valor)]</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <label class="form-label small" for="origem">@T["Origem"]</label>
+                <select class="form-select" id="origem" @bind="_filtro.Origem">
+                    <option value="">@T["Todas"]</option>
+                    @foreach (var valor in Enum.GetValues<OrigemBloqueio>())
+                    {
+                        <option value="@valor">@T[Exibicao.Rotulo(valor)]</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <label class="form-label small" for="regra">@T["Regra"]</label>
+                <select class="form-select" id="regra" @bind="_filtro.RegraId">
+                    <option value="">@T["Todas"]</option>
+                    @foreach (var regra in _regras)
+                    {
+                        <option value="@regra.Id">@regra.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <label class="form-label small" for="pais">@T["País"]</label>
+                <input class="form-control text-uppercase" id="pais" @bind="_filtro.Pais" maxlength="2" placeholder="BR" />
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <label class="form-label small" for="simulado">@T["Tipo"]</label>
+                <select class="form-select" id="simulado" @bind="_filtro.Simulado">
+                    <option value="">@T["Todos"]</option>
+                    <option value="false">@T["Reais"]</option>
+                    <option value="true">@T["Simulados"]</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <label class="form-label small" for="de">@T["De"]</label>
+                <input type="date" class="form-control" id="de" @bind="_filtro.De" />
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <label class="form-label small" for="ate">@T["Até"]</label>
+                <input type="date" class="form-control" id="ate" @bind="_filtro.Ate" />
+            </div>
+            <div class="col-md-auto d-flex gap-2">
+                <button class="btn btn-primary" type="submit"><i class="bi bi-funnel"></i> @T["Filtrar"]</button>
+                <a class="btn btn-outline-secondary" href="/Bloqueios">@T["Limpar"]</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card cartao cartao-cheio">
+    <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+        <span>@T["Histórico e status dos IPs"]</span>
+        <div class="ms-auto d-flex gap-2">
+            <button class="btn btn-sm btn-outline-success" type="button" disabled="@(_selecionados.Count == 0)" @onclick="() => _modal = ModalBloqueio.DesbloquearSelecionados">
+                <i class="bi bi-unlock"></i> @T["Desbloquear selecionados"]
+            </button>
+            <button class="btn btn-sm btn-danger" type="button" @onclick="AbrirBloquear">
+                <i class="bi bi-slash-circle"></i> @T["Bloquear IP"]
+            </button>
+        </div>
+    </div>
+    <div class="table-responsive tabela-rolagem">
+        <table class="table table-hover align-middle mb-0 tabela-bloqueios">
+            <thead>
+            <tr>
+                <th class="coluna-selecao"><input class="form-check-input" type="checkbox" aria-label="@T["Selecionar todos"]" checked="@TodosSelecionados" @onchange="SelecionarTodos" /></th>
+                <th>@T["IP"]</th>
+                <th>@T["Localização"]</th>
+                <th>@T["Motivo"]</th>
+                <th class="text-end">@T["Ocorr."]</th>
+                <th class="text-center">@T["Nível"]</th>
+                <th>@T["Bloqueado em"]</th>
+                <th>@T["Expira em"]</th>
+                <th>@T["Situação"]</th>
+                <th class="text-end">@T["Ações"]</th>
+            </tr>
+            </thead>
+            <tbody>
+            @* Rolagem infinita: carrega 50 linhas por vez conforme a tabela rola (sem paginacao). *@
+            <Virtualize @ref="_linhas" ItemsProvider="CarregarLinhasAsync" ItemSize="54" OverscanCount="15" SpacerElement="tr" Context="bloqueio">
+                <ItemContent>
+                @{
+                    var situacao = Exibicao.SituacaoBloqueio(bloqueio);
+                    var ativo = bloqueio.Status == StatusBloqueio.Ativo;
+                }
+                <tr @key="bloqueio.Id">
+                    <td>
+                        @if (ativo)
+                        {
+                            <input class="form-check-input" type="checkbox" aria-label="@bloqueio.Ip" checked="@_selecionados.Contains(bloqueio.Id)" @onchange="() => AlternarSelecao(bloqueio.Id)" />
+                        }
+                    </td>
+                    <td>
+                        <a href="@UrlDetalhe(bloqueio.Ip)" class="fonte-mono fw-semibold">@bloqueio.Ip</a>
+                        @if (!string.IsNullOrEmpty(bloqueio.Organizacao))
+                        {
+                            <div class="small text-body-secondary text-truncate celula-motivo" title="AS@(bloqueio.Asn) @bloqueio.Organizacao">AS@(bloqueio.Asn) · @bloqueio.Organizacao</div>
+                        }
+                    </td>
+                    <td>
+                        <Bandeira Codigo="@bloqueio.PaisCodigo" />
+                        <span>@Exibicao.NomePais(bloqueio.PaisCodigo, bloqueio.PaisNome)</span>
+                        @if (!string.IsNullOrEmpty(bloqueio.Cidade))
+                        {
+                            <div class="small text-body-secondary">@bloqueio.Cidade</div>
+                        }
+                    </td>
+                    <td>
+                        <div>@T[bloqueio.Motivo]</div>
+                        <div class="small text-body-secondary">@T[Exibicao.Rotulo(bloqueio.Origem)] · @bloqueio.CriadoPor</div>
+                    </td>
+                    <td class="text-end">@bloqueio.Ocorrencias.ToString("N0")</td>
+                    <td class="text-center"><span class="badge rounded-pill text-bg-light border">@bloqueio.NivelReincidencia</span></td>
+                    <td class="small">@Exibicao.DataHora(bloqueio.BloqueadoEm)</td>
+                    <td class="small">
+                        @if (!ativo)
+                        {
+                            <span class="text-body-secondary">@Exibicao.DataHora(bloqueio.EncerradoEm)</span>
+                        }
+                        else if (bloqueio.EhPermanente)
+                        {
+                            <span class="badge text-bg-dark">@T["Permanente"]</span>
+                        }
+                        else
+                        {
+                            @Exibicao.DataHora(bloqueio.ExpiraEm)
+                        }
+                    </td>
+                    <td><span class="badge @situacao.Classe">@T[situacao.Texto]</span></td>
+                    <td class="text-end">
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' type="button" aria-label="@T["Ações"]"><i class="bi bi-three-dots"></i></button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="@UrlDetalhe(bloqueio.Ip)"><i class="bi bi-search me-2"></i>@T["Detalhes do IP"]</a></li>
+                                @if (ativo)
+                                {
+                                    <li><button class="dropdown-item" type="button" @onclick="() => Abrir(ModalBloqueio.Desbloquear, bloqueio)"><i class="bi bi-unlock me-2"></i>@T["Desbloquear"]</button></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="() => Abrir(ModalBloqueio.Expiracao, bloqueio)"><i class="bi bi-hourglass-split me-2"></i>@T["Alterar expiração"]</button></li>
+                                }
+                                <li><button class="dropdown-item" type="button" @onclick="() => ListaBrancaAsync(bloqueio.Ip)"><i class="bi bi-shield-check me-2"></i>@T["Adicionar à lista branca"]</button></li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+                </ItemContent>
+                <Placeholder><tr><td colspan="10" class="text-body-secondary">&nbsp;</td></tr></Placeholder>
+                <EmptyContent><tr><td colspan="10" class="text-center text-body-secondary py-4">@T["Nenhum bloqueio encontrado para os filtros informados."]</td></tr></EmptyContent>
+            </Virtualize>
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer small text-body-secondary">@T["{0} registro(s)", _total]</div>
+</div>
+</div>
+
+<Modal Aberto="_modal == ModalBloqueio.Bloquear" AbertoChanged="Fechar">
+    <Cabecalho><i class="bi bi-slash-circle text-danger me-2"></i>@T["Bloquear IP"]</Cabecalho>
+    <ChildContent>
+        <div class="modal-body">
+            <div class="mb-3">
+                <label class="form-label" for="bloquearIp">@T["Endereço IP"]</label>
+                <input class="form-control fonte-mono" id="bloquearIp" @bind="_ip" placeholder="203.0.113.7" />
+                <div class="form-text">@T["Para bloquear uma faixa inteira, use a lista negra."]</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="bloquearDuracao">@T["Duração"]</label>
+                <SeletorDuracao Id="bloquearDuracao" @bind-Valor="_duracao" />
+            </div>
+            <div>
+                <label class="form-label" for="bloquearComentario">@T["Comentário"]</label>
+                <textarea class="form-control" id="bloquearComentario" rows="2" maxlength="500" @bind="_comentario"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" @onclick="Fechar">@T["Cancelar"]</button>
+            <button type="button" class="btn btn-danger" disabled="@_processando" @onclick="BloquearAsync">@T["Bloquear"]</button>
+        </div>
+    </ChildContent>
+</Modal>
+
+<Modal Aberto="_modal == ModalBloqueio.Desbloquear" AbertoChanged="Fechar">
+    <Cabecalho><i class="bi bi-unlock text-success me-2"></i>@T["Desbloquear"] <span class="fonte-mono">@_alvo?.Ip</span></Cabecalho>
+    <ChildContent>
+        <div class="modal-body">
+            <label class="form-label" for="desbloquearComentario">@T["Comentário"]</label>
+            <textarea class="form-control" id="desbloquearComentario" rows="2" maxlength="500" @bind="_comentario"></textarea>
+            <div class="form-text">@T["Se o IP continuar gerando eventos, ele pode ser bloqueado novamente. Para liberar em definitivo, use a lista branca."]</div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" @onclick="Fechar">@T["Cancelar"]</button>
+            <button type="button" class="btn btn-success" disabled="@_processando" @onclick="DesbloquearAsync">@T["Desbloquear"]</button>
+        </div>
+    </ChildContent>
+</Modal>
+
+<Modal Aberto="_modal == ModalBloqueio.Expiracao" AbertoChanged="Fechar">
+    <Cabecalho><i class="bi bi-hourglass-split me-2"></i>@T["Alterar expiração"] <span class="fonte-mono">@_alvo?.Ip</span></Cabecalho>
+    <ChildContent>
+        <div class="modal-body">
+            <label class="form-label" for="expiracaoDuracao">@T["Bloquear por mais (a partir de agora)"]</label>
+            <SeletorDuracao Id="expiracaoDuracao" @bind-Valor="_duracao" />
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" @onclick="Fechar">@T["Cancelar"]</button>
+            <button type="button" class="btn btn-primary" disabled="@_processando" @onclick="AlterarExpiracaoAsync">@T["Salvar"]</button>
+        </div>
+    </ChildContent>
+</Modal>
+
+<Modal Aberto="_modal == ModalBloqueio.DesbloquearSelecionados" AbertoChanged="Fechar">
+    <Cabecalho><i class="bi bi-unlock text-success me-2"></i>@T["Desbloquear selecionados"]</Cabecalho>
+    <ChildContent>
+        <div class="modal-body">
+            <p>@T["IPs selecionados:"] <strong>@_selecionados.Count</strong></p>
+            <label class="form-label" for="loteComentario">@T["Comentário"]</label>
+            <textarea class="form-control" id="loteComentario" rows="2" maxlength="500" @bind="_comentario"></textarea>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" @onclick="Fechar">@T["Cancelar"]</button>
+            <button type="button" class="btn btn-success" disabled="@_processando" @onclick="DesbloquearSelecionadosAsync">@T["Desbloquear"]</button>
+        </div>
+    </ChildContent>
+</Modal>
+
+@code {
+    private enum ModalBloqueio { Nenhum, Bloquear, Desbloquear, Expiracao, DesbloquearSelecionados }
+
+    [SupplyParameterFromQuery] private string? Busca { get; set; }
+    [SupplyParameterFromQuery] private string? Status { get; set; }
+    [SupplyParameterFromQuery] private string? Origem { get; set; }
+    [SupplyParameterFromQuery] private string? Pais { get; set; }
+    [SupplyParameterFromQuery] private int? RegraId { get; set; }
+    [SupplyParameterFromQuery] private bool? Simulado { get; set; }
+    [SupplyParameterFromQuery] private DateOnly? De { get; set; }
+    [SupplyParameterFromQuery] private DateOnly? Ate { get; set; }
+    private readonly FiltroTela _filtro = new();
+    private readonly HashSet<int> _selecionados = [];
+
+    /// <summary>Bloqueios ativos ja carregados na rolagem (base do "selecionar todos").</summary>
+    private readonly HashSet<int> _ativosCarregados = [];
+    private IReadOnlyList<RegraDeteccao> _regras = [];
+    private Virtualize<Bloqueio>? _linhas;
+    private FiltroBloqueios _consulta = new();
+    private int _total;
+    private ModalBloqueio _modal;
+    private Bloqueio? _alvo;
+    private string? _ip;
+    private string _duracao = "24h";
+    private string? _comentario;
+    private bool _processando;
+
+    protected override async Task OnInitializedAsync() =>
+        _regras = await Servicos.ExecutarAsync((ServicoRegras s) => s.ListarAsync());
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _filtro.Busca = Busca;
+        _filtro.Status = Status;
+        _filtro.Origem = Origem;
+        _filtro.Pais = Pais;
+        _filtro.RegraId = RegraId;
+        _filtro.Simulado = Simulado;
+        _filtro.De = De;
+        _filtro.Ate = Ate;
+        _consulta = new FiltroBloqueios
+        {
+            Busca = Busca,
+            Status = Enum.TryParse<StatusBloqueio>(Status, out var status) ? status : null,
+            Origem = Enum.TryParse<OrigemBloqueio>(Origem, out var origem) ? origem : null,
+            PaisCodigo = Pais,
+            RegraId = RegraId,
+            Simulado = Simulado,
+            DeUtc = ParaUtc(De),
+            AteUtc = ParaUtc(Ate?.AddDays(1))
+        };
+        _selecionados.Clear();
+        await RecarregarAsync();
+    }
+
+    private async ValueTask<ItemsProviderResult<Bloqueio>> CarregarLinhasAsync(ItemsProviderRequest pedido)
+    {
+        var consulta = _consulta with { Pular = pedido.StartIndex, Quantidade = Math.Min(pedido.Count, 200) };
+        var fatia = await Servicos.ExecutarAsync((ServicoBloqueios s) => s.PesquisarAsync(consulta));
+        _ativosCarregados.UnionWith(fatia.Itens.Where(b => b.Status == StatusBloqueio.Ativo).Select(b => b.Id));
+        if (_total != fatia.Total)
+        {
+            _total = fatia.Total;
+            StateHasChanged();
+        }
+        return new ItemsProviderResult<Bloqueio>(fatia.Itens, fatia.Total);
+    }
+
+    /// <summary>Volta a consultar as linhas visiveis (depois de filtrar ou de uma acao).</summary>
+    private async Task RecarregarAsync()
+    {
+        _ativosCarregados.Clear();
+        if (_linhas is not null)
+            await _linhas.RefreshDataAsync();
+    }
+
+    private void Filtrar() =>
+        Navegacao.NavigateTo(Navegacao.GetUriWithQueryParameters("/Bloqueios", new Dictionary<string, object?>
+        {
+            ["Busca"] = Vazio(_filtro.Busca),
+            ["Status"] = Vazio(_filtro.Status),
+            ["Origem"] = Vazio(_filtro.Origem),
+            ["Pais"] = Vazio(_filtro.Pais?.ToUpperInvariant()),
+            ["RegraId"] = _filtro.RegraId,
+            ["Simulado"] = _filtro.Simulado,
+            ["De"] = _filtro.De?.ToString("yyyy-MM-dd"),
+            ["Ate"] = _filtro.Ate?.ToString("yyyy-MM-dd")
+        }));
+
+    private bool TodosSelecionados => _ativosCarregados.Count > 0 && _ativosCarregados.IsSubsetOf(_selecionados);
+
+    private void SelecionarTodos(ChangeEventArgs args)
+    {
+        _selecionados.Clear();
+        if (args.Value is true)
+            _selecionados.UnionWith(_ativosCarregados);
+    }
+
+    private void AlternarSelecao(int id)
+    {
+        if (!_selecionados.Remove(id))
+            _selecionados.Add(id);
+    }
+
+    private void AbrirBloquear()
+    {
+        _ip = null;
+        Abrir(ModalBloqueio.Bloquear, null);
+    }
+
+    private void Abrir(ModalBloqueio modal, Bloqueio? alvo)
+    {
+        _alvo = alvo;
+        _comentario = null;
+        _duracao = "24h";
+        _modal = modal;
+    }
+
+    private void Fechar() => _modal = ModalBloqueio.Nenhum;
+
+    private Task BloquearAsync() => ExecutarAsync(async () =>
+    {
+        if (!Exibicao.TentarConverterDuracao(_duracao, out var tempo))
+            return Resultado.Falha("Duração inválida.");
+        return await Servicos.ExecutarAsync((ServicoBloqueios s) => s.BloquearManualAsync(_ip ?? string.Empty, tempo, _comentario));
+    }, "Bloqueio registrado. O firewall será atualizado em instantes.");
+
+    private Task DesbloquearAsync() => ExecutarAsync(
+        () => Servicos.ExecutarAsync((ServicoBloqueios s) => s.DesbloquearAsync(_alvo!.Id, _comentario)),
+        "IP liberado. O firewall será atualizado em instantes.");
+
+    private Task AlterarExpiracaoAsync() => ExecutarAsync(async () =>
+    {
+        if (!Exibicao.TentarConverterDuracao(_duracao, out var tempo))
+            return Resultado.Falha("Duração inválida.");
+        return await Servicos.ExecutarAsync((ServicoBloqueios s) => s.AlterarExpiracaoAsync(_alvo!.Id, tempo));
+    }, "Expiração alterada.");
+
+    private Task DesbloquearSelecionadosAsync() => ExecutarAsync(async () =>
+    {
+        var resultado = await Servicos.ExecutarAsync((ServicoBloqueios s) => s.DesbloquearVariosAsync(_selecionados.ToArray(), _comentario));
+        if (resultado.Sucesso)
+            _selecionados.Clear();
+        return resultado;
+    }, "IPs selecionados liberados.");
+
+    private async Task ListaBrancaAsync(string ip)
+    {
+        if (!await ConfirmarAsync(T["Adicionar {0} à lista branca? O IP nunca mais será bloqueado.", ip]))
+            return;
+        await ExecutarAsync(
+            () => Servicos.ExecutarAsync((ServicoListas s) => s.AdicionarAsync(TipoLista.Branca, ip, "Incluído pela tela de bloqueios")),
+            "IP adicionado à lista branca e liberado.");
+    }
+
+    private async Task ExecutarAsync(Func<Task<Resultado>> acao, string mensagemSucesso)
+    {
+        _processando = true;
+        try
+        {
+            if (Avisos.Mostrar(await acao(), mensagemSucesso))
+                Fechar();
+            await RecarregarAsync();
+        }
+        finally
+        {
+            _processando = false;
+        }
+    }
+
+    private static string? Vazio(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+
+    private static string UrlDetalhe(string ip) => $"/Bloqueios/Detalhe?ip={Uri.EscapeDataString(ip)}";
+
+    private static DateTime? ParaUtc(DateOnly? data) =>
+        data is null ? null : TimeZoneInfo.ConvertTimeToUtc(data.Value.ToDateTime(TimeOnly.MinValue), TimeZoneInfo.Local);
+
+    private sealed class FiltroTela
+    {
+        public string? Busca { get; set; }
+        public string? Status { get; set; }
+        public string? Origem { get; set; }
+        public string? Pais { get; set; }
+        public int? RegraId { get; set; }
+        public bool? Simulado { get; set; }
+        public DateOnly? De { get; set; }
+        public DateOnly? Ate { get; set; }
+    }
+}

@@ -1,0 +1,24 @@
+@* Layout das telas sem login (renderizadas no servidor, sem interatividade). *@
+@inherits LayoutComponentBase
+@inject IStringLocalizer<Textos> T
+@inject NavigationManager Navegacao
+
+<div class="tela-acesso">
+    <div class="cartao-acesso">
+        <div class="text-center mb-4">
+            <div class="marca-acesso"><i class="bi bi-shield-shaded"></i> CRSPIPS</div>
+            <div class="text-body-secondary small">@T["Sistema de Prevenção de Intrusões"]</div>
+        </div>
+        @Body
+        <div class="text-center mt-4 small">
+            <a class="link-secondary" href="@UrlIdioma("pt-BR")" data-enhance-nav="false">Português</a>
+            <span class="text-body-secondary mx-1">·</span>
+            <a class="link-secondary" href="@UrlIdioma("en")" data-enhance-nav="false">English</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string UrlIdioma(string cultura) =>
+        $"/idioma?cultura={cultura}&retorno={Uri.EscapeDataString("/" + Navegacao.ToBaseRelativePath(Navegacao.Uri))}";
+}

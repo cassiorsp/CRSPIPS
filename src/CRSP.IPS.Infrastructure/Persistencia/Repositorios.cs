@@ -1,3 +1,4 @@
+using System.Globalization;
 using CRSP.IPS.Application.Abstracoes;
 using CRSP.IPS.Application.Modelos;
 using CRSP.IPS.Domain.Entidades;
@@ -32,13 +33,55 @@ internal sealed class RepositorioBloqueios(ContextoIps contexto) : IRepositorioB
             .OrderByDescending(b => b.BloqueadoEm)
             .ToListAsync(ct);
 
-    public async Task<IReadOnlyList<Bloqueio>> ListarDesdeAsync(DateTime desdeUtc, CancellationToken ct = default) =>
-        await contexto.Bloqueios.AsNoTracking().Where(b => b.BloqueadoEm >= desdeUtc).ToListAsync(ct);
+    public async Task<ResumoBloqueios> ResumirDesdeAsync(DateTime desdeUtc, CancellationToken ct = default)
+    {
+        var grupos = await contexto.Bloqueios.AsNoTracking()
+            .Where(b => b.BloqueadoEm >= desdeUtc)
+            .GroupBy(b => new { b.Simulado, Ativo = b.Status == StatusBloqueio.Ativo })
+            .Select(g => new { g.Key.Simulado, g.Key.Ativo, Quantidade = g.Count() })
+            .ToListAsync(ct);
+
+        return new ResumoBloqueios(
+            AtivosReais: grupos.Where(g => g.Ativo && !g.Simulado).Sum(g => g.Quantidade),
+            AtivosSimulados: grupos.Where(g => g.Ativo && g.Simulado).Sum(g => g.Quantidade),
+            Reais: grupos.Where(g => !g.Simulado).Sum(g => g.Quantidade),
+            Simulados: grupos.Where(g => g.Simulado).Sum(g => g.Quantidade));
+    }
+
+    public Task<IReadOnlyList<ContagemHora>> ContarPorHoraDesdeAsync(DateTime desdeUtc, CancellationToken ct = default) =>
+        ContagemPorHora.ConsultarAsync(contexto.Database.SqlQuery<ContagemPorHora.Linha>(
+            $"SELECT substr(BloqueadoEm, 1, 13) AS Hora, COUNT(*) AS Quantidade FROM Bloqueios WHERE BloqueadoEm >= {desdeUtc} GROUP BY substr(BloqueadoEm, 1, 13)"), ct);
+
+    public async Task<IReadOnlyList<ItemRanking>> RankingPaisesDesdeAsync(DateTime desdeUtc, int quantidade, CancellationToken ct = default)
+    {
+        var linhas = await contexto.Bloqueios.AsNoTracking()
+            .Where(b => b.BloqueadoEm >= desdeUtc && b.PaisCodigo != null)
+            .GroupBy(b => b.PaisCodigo!)
+            .Select(g => new { Pais = g.Key, Quantidade = g.Count(), Nome = g.Max(b => b.PaisNome) })
+            .OrderByDescending(g => g.Quantidade)
+            .Take(quantidade)
+            .ToListAsync(ct);
+        return linhas.Select(l => new ItemRanking(l.Pais, l.Quantidade, l.Nome)).ToList();
+    }
+
+    public async Task<IReadOnlyDictionary<string, int>> ContarPorIpsDesdeAsync(IReadOnlyCollection<string> ips, DateTime desdeUtc, CancellationToken ct = default) =>
+        await contexto.Bloqueios.AsNoTracking()
+            .Where(b => b.BloqueadoEm >= desdeUtc && ips.Contains(b.Ip))
+            .GroupBy(b => b.Ip)
+            .Select(g => new { Ip = g.Key, Quantidade = g.Count() })
+            .ToDictionaryAsync(g => g.Ip, g => g.Quantidade, ct);
+
+    public async Task<IReadOnlyList<Bloqueio>> ListarRecentesDesdeAsync(DateTime desdeUtc, int quantidade, CancellationToken ct = default) =>
+        await contexto.Bloqueios.AsNoTracking()
+            .Where(b => b.BloqueadoEm >= desdeUtc)
+            .OrderByDescending(b => b.BloqueadoEm)
+            .Take(quantidade)
+            .ToListAsync(ct);
 
     public Task<int> ContarPorIpDesdeAsync(string ip, DateTime desdeUtc, CancellationToken ct = default) =>
         contexto.Bloqueios.CountAsync(b => b.Ip == ip && b.BloqueadoEm >= desdeUtc, ct);
 
-    public async Task<Pagina<Bloqueio>> PesquisarAsync(FiltroBloqueios filtro, CancellationToken ct = default)
+    public async Task<Fatia<Bloqueio>> PesquisarAsync(FiltroBloqueios filtro, CancellationToken ct = default)
     {
         var consulta = contexto.Bloqueios.AsNoTracking().Include(b => b.Regra).AsQueryable();
 
@@ -80,11 +123,11 @@ internal sealed class RepositorioBloqueios(ContextoIps contexto) : IRepositorioB
         var total = await consulta.CountAsync(ct);
         var itens = await consulta
             .OrderByDescending(b => b.BloqueadoEm)
-            .Skip((filtro.Pagina - 1) * filtro.TamanhoPagina)
-            .Take(filtro.TamanhoPagina)
+            .Skip(filtro.Pular)
+            .Take(filtro.Quantidade)
             .ToListAsync(ct);
 
-        return new Pagina<Bloqueio>(itens, total, filtro.Pagina, filtro.TamanhoPagina);
+        return new Fatia<Bloqueio>(itens, total);
     }
 
     public async Task<IReadOnlyList<Bloqueio>> ListarSemLocalizacaoDesdeAsync(DateTime desdeUtc, int limite, CancellationToken ct = default) =>
@@ -155,13 +198,43 @@ internal sealed class RepositorioEventos(ContextoIps contexto) : IRepositorioEve
 {
     public void AdicionarVarios(IEnumerable<EventoSeguranca> eventos) => contexto.Eventos.AddRange(eventos);
 
-    public async Task<IReadOnlyList<EventoSeguranca>> ListarRecentesAsync(int quantidade, TipoFonte? fonte, long? aposId, CancellationToken ct = default) =>
-        await contexto.Eventos.AsNoTracking()
-            .Where(e => fonte == null || e.Fonte == fonte)
-            .Where(e => aposId == null || e.Id > aposId)
-            .OrderByDescending(e => e.Id)
-            .Take(quantidade)
+    public async Task<IReadOnlyList<EventoSeguranca>> ListarRecentesAsync(int quantidade, FiltroEventos filtro, long? aposId, CancellationToken ct = default)
+    {
+        var consulta = contexto.Eventos.AsNoTracking();
+        if (filtro.Fonte is { } fonte)
+            consulta = consulta.Where(e => e.Fonte == fonte);
+        if (!string.IsNullOrWhiteSpace(filtro.PaisCodigo))
+        {
+            var pais = filtro.PaisCodigo.ToUpperInvariant();
+            consulta = consulta.Where(e => e.PaisCodigo == pais);
+        }
+        if (filtro.CodigoStatus is { } codigo)
+            consulta = consulta.Where(e => e.CodigoStatus == codigo);
+        if (aposId is { } id)
+            consulta = consulta.Where(e => e.Id > id);
+
+        return await consulta.OrderByDescending(e => e.Id).Take(quantidade).ToListAsync(ct);
+    }
+
+    public async Task<OpcoesFiltroEventos> ObterOpcoesFiltroAsync(CancellationToken ct = default)
+    {
+        var paises = await contexto.Eventos.AsNoTracking()
+            .Where(e => e.PaisCodigo != null)
+            .Select(e => e.PaisCodigo!)
+            .Distinct()
             .ToListAsync(ct);
+        var codigos = await contexto.Eventos.AsNoTracking()
+            .Where(e => e.CodigoStatus != null)
+            .Select(e => e.CodigoStatus!.Value)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync(ct);
+        return new OpcoesFiltroEventos(paises, codigos);
+    }
+
+    public Task<IReadOnlyList<ContagemHora>> ContarPorHoraDesdeAsync(DateTime desdeUtc, CancellationToken ct = default) =>
+        ContagemPorHora.ConsultarAsync(contexto.Database.SqlQuery<ContagemPorHora.Linha>(
+            $"SELECT substr(OcorridoEm, 1, 13) AS Hora, COUNT(*) AS Quantidade FROM Eventos WHERE OcorridoEm >= {desdeUtc} GROUP BY substr(OcorridoEm, 1, 13)"), ct);
 
     public async Task<IReadOnlyList<EventoSeguranca>> ListarPorIpAsync(string ip, int quantidade, CancellationToken ct = default) =>
         await contexto.Eventos.AsNoTracking()
@@ -169,9 +242,6 @@ internal sealed class RepositorioEventos(ContextoIps contexto) : IRepositorioEve
             .OrderByDescending(e => e.Id)
             .Take(quantidade)
             .ToListAsync(ct);
-
-    public async Task<IReadOnlyList<DateTime>> ListarMomentosDesdeAsync(DateTime desdeUtc, CancellationToken ct = default) =>
-        await contexto.Eventos.AsNoTracking().Where(e => e.OcorridoEm >= desdeUtc).Select(e => e.OcorridoEm).ToListAsync(ct);
 
     public async Task<IReadOnlyList<ItemRanking>> RankingUrlsDesdeAsync(DateTime desdeUtc, int quantidade, CancellationToken ct = default)
     {
@@ -250,7 +320,7 @@ internal sealed class RepositorioAuditoria(ContextoIps contexto) : IRepositorioA
 {
     public void Adicionar(RegistroAuditoria registro) => contexto.Auditoria.Add(registro);
 
-    public async Task<Pagina<RegistroAuditoria>> PesquisarAsync(string? texto, int pagina, int tamanhoPagina, CancellationToken ct = default)
+    public async Task<Fatia<RegistroAuditoria>> PesquisarAsync(string? texto, int pular, int quantidade, CancellationToken ct = default)
     {
         var consulta = contexto.Auditoria.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(texto))
@@ -261,8 +331,8 @@ internal sealed class RepositorioAuditoria(ContextoIps contexto) : IRepositorioA
         }
 
         var total = await consulta.CountAsync(ct);
-        var itens = await consulta.OrderByDescending(a => a.Id).Skip((pagina - 1) * tamanhoPagina).Take(tamanhoPagina).ToListAsync(ct);
-        return new Pagina<RegistroAuditoria>(itens, total, pagina, tamanhoPagina);
+        var itens = await consulta.OrderByDescending(a => a.Id).Skip(pular).Take(quantidade).ToListAsync(ct);
+        return new Fatia<RegistroAuditoria>(itens, total);
     }
 }
 
@@ -293,7 +363,12 @@ internal sealed class RepositorioListasExternas(ContextoIps contexto) : IReposit
     public Task<ListaExterna?> ObterPorIdAsync(int id, CancellationToken ct = default) =>
         contexto.ListasExternas.FirstOrDefaultAsync(l => l.Id == id, ct);
 
+    public Task<bool> ExisteNomeAsync(string nome, CancellationToken ct = default) =>
+        contexto.ListasExternas.AnyAsync(l => l.Nome == nome, ct);
+
     public void Adicionar(ListaExterna lista) => contexto.ListasExternas.Add(lista);
+
+    public void Remover(ListaExterna lista) => contexto.ListasExternas.Remove(lista);
 
     public async Task<string> ObterVersaoAsync(CancellationToken ct = default)
     {
@@ -354,4 +429,28 @@ internal sealed class RepositorioRegrasFirewallDesativadas(ContextoIps contexto)
     public void Adicionar(RegraFirewallDesativada regra) => contexto.RegrasFirewallDesativadas.Add(regra);
 
     public void Remover(RegraFirewallDesativada regra) => contexto.RegrasFirewallDesativadas.Remove(regra);
+}
+
+/// <summary>
+/// Contagem agrupada por hora UTC direto no SQLite. As datas sao gravadas como texto "yyyy-MM-dd HH:mm:ss",
+/// entao os 13 primeiros caracteres identificam a hora. Evita carregar milhares de registros para montar os graficos.
+/// </summary>
+internal static class ContagemPorHora
+{
+    internal sealed class Linha
+    {
+        public string Hora { get; set; } = string.Empty;
+        public int Quantidade { get; set; }
+    }
+
+    public static async Task<IReadOnlyList<ContagemHora>> ConsultarAsync(IQueryable<Linha> consulta, CancellationToken ct)
+    {
+        var linhas = await consulta.ToListAsync(ct);
+        return linhas
+            .Where(l => l.Hora.Length == 13)
+            .Select(l => new ContagemHora(
+                DateTime.SpecifyKind(DateTime.ParseExact(l.Hora, "yyyy-MM-dd HH", CultureInfo.InvariantCulture), DateTimeKind.Utc),
+                l.Quantidade))
+            .ToList();
+    }
 }

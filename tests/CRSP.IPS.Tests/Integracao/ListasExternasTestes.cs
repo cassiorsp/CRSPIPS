@@ -130,6 +130,65 @@ public class ListasExternasTestes
         Assert.Contains(detalhe.Valor!.ListasExternas, l => l.Lista == "CINS Army");
     }
 
+    [Fact]
+    public async Task ListaPersonalizada_CriaBaixaAplicaEExclui()
+    {
+        await using var ambiente = await AmbienteTeste.CriarAsync();
+        await DesligarSimulacaoAsync(ambiente);
+        const string url = "https://listas.exemplo.com/hostis.txt";
+        ambiente.BaixadorListas.Conteudos[url] = "# comentario\n45.95.0.0/16\n198.51.100.10\n";
+
+        var dados = new DadosListaExterna("Minha lista", "Parceiro de segurança", [url], FormatoListaExterna.TextoSimples, 12, 1000, ModoListaExterna.Ativa);
+        var criacao = await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoListasExternas>().CriarAsync(dados));
+        Assert.True(criacao.Sucesso, criacao.Erro);
+
+        var repetida = await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoListasExternas>().CriarAsync(dados));
+        Assert.False(repetida.Sucesso);
+
+        await AtualizarAsync(ambiente);
+        await SincronizarAsync(ambiente);
+
+        var lista = await ObterListaAsync(ambiente, "Minha lista");
+        Assert.True(lista.Personalizada);
+        Assert.Equal(1, lista.Quantidade);
+        Assert.Equal(1, lista.Removidas);
+        Assert.Contains(ambiente.Firewall.ListasExternas, f => f.ParaTextoFirewall() == "45.95.0.0-45.95.255.255");
+
+        var exclusao = await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoListasExternas>().ExcluirAsync(lista.Id));
+        Assert.True(exclusao.Sucesso, exclusao.Erro);
+        await SincronizarAsync(ambiente);
+
+        Assert.DoesNotContain(ambiente.Firewall.ListasExternas, f => f.ParaTextoFirewall() == "45.95.0.0-45.95.255.255");
+        Assert.DoesNotContain(await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoListasExternas>().ListarAsync()), l => l.Nome == "Minha lista");
+    }
+
+    [Theory]
+    [InlineData("", "https://listas.exemplo.com/a.txt", 24, 100)]
+    [InlineData("Sem HTTPS", "http://listas.exemplo.com/a.txt", 24, 100)]
+    [InlineData("Intervalo invalido", "https://listas.exemplo.com/a.txt", 0, 100)]
+    [InlineData("Limite invalido", "https://listas.exemplo.com/a.txt", 24, 500_000)]
+    public async Task ListaPersonalizada_ValidaOsDados(string nome, string url, int intervalo, int limite)
+    {
+        await using var ambiente = await AmbienteTeste.CriarAsync();
+
+        var resultado = await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoListasExternas>().CriarAsync(
+            new DadosListaExterna(nome, null, [url], FormatoListaExterna.TextoSimples, intervalo, limite, ModoListaExterna.Avaliacao)));
+
+        Assert.False(resultado.Sucesso);
+    }
+
+    [Fact]
+    public async Task ListaDoCatalogo_NaoPodeSerExcluida()
+    {
+        await using var ambiente = await AmbienteTeste.CriarAsync();
+        var spamhaus = await ObterListaAsync(ambiente, "Spamhaus DROP");
+
+        var resultado = await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoListasExternas>().ExcluirAsync(spamhaus.Id));
+
+        Assert.False(resultado.Sucesso);
+        Assert.False(spamhaus.Personalizada);
+    }
+
     private static Task AtualizarAsync(AmbienteTeste ambiente) =>
         ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoAtualizacaoListasExternas>().AtualizarPendentesAsync());
 

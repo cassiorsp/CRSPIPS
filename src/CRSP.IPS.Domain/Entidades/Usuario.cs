@@ -49,11 +49,5 @@ public class Usuario
 
     public void AlterarSenha(string novoHash) => HashSenha = novoHash;
 
-    public void AlterarDados(string nome, string email)
-    {
-        Nome = nome.Trim();
-        Email = NormalizarEmail(email);
-    }
-
     public void DefinirAtivo(bool ativo) => Ativo = ativo;
 }

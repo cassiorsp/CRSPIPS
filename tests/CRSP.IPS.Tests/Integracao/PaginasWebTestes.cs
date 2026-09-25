@@ -29,22 +29,26 @@ public class PaginasWebTestes : IClassFixture<PaginasWebTestes.FabricaPainel>
     public static TheoryData<string, string> Paginas => new()
     {
         { "/", "Bloqueios ativos" },
-        { "/Bloqueios", "203.0.113.7" },
-        { "/Bloqueios?Busca=203.0.113.0/24&Status=Ativo", "203.0.113.7" },
+        { "/Bloqueios", "Histórico e status dos IPs" },
+        { "/Bloqueios?Busca=198.51.100.0/24&Status=Ativo", "value=\"198.51.100.0/24\"" },
         { "/Bloqueios/Detalhe?ip=203.0.113.7", "Histórico de bloqueios" },
         { "/Monitor", "Eventos suspeitos em tempo real" },
-        { "/Monitor?handler=Eventos", "203.0.113.7" },
+        { "/Monitor?x=1", "203.0.113.7" },
+        { "/?periodo=7d", "Ataques mitigados" },
+        { "/?periodo=tudo", "IPs agressores mais frequentes" },
         { "/Regras", "Excesso de 404" },
         { "/Regras/Editar", "Limite de ocorrências" },
         { "/Regras/Editar?id=1", "Excesso de 404" },
         { "/Listas", "10.0.0.0/8" },
         { "/Listas?tipo=Negra", "198.51.100.0/24" },
         { "/Listas/Externas", "Spamhaus DROP" },
+        { "/Listas/Externas?x=1", "Nova lista" },
+        { "/Listas?tipo=Branca", "Baixar modelo CSV" },
         { "/Paises", "Política de países" },
         { "/Configuracoes", "Tempos de bloqueio progressivo" },
         { "/Usuarios", "Administradores do sistema" },
         { "/Usuarios/Novo", "Confirmar senha" },
-        { "/Auditoria", "Bloqueio manual" },
+        { "/Auditoria", "registro(s)" },
         { "/Conta/Senha", "Senha atual" }
     };
 
@@ -83,6 +87,30 @@ public class PaginasWebTestes : IClassFixture<PaginasWebTestes.FabricaPainel>
 
         Assert.Equal(HttpStatusCode.Redirect, resposta.StatusCode);
         Assert.Contains("/Conta/Entrar", resposta.Headers.Location?.ToString());
+    }
+
+    [Fact]
+    public async Task TelaDeLoginRenderizaSemAutenticacao()
+    {
+        _fabrica.CriarCliente("pt-BR");
+        var cliente = _fabrica.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var resposta = await cliente.GetAsync("/Conta/Entrar");
+        var html = WebUtility.HtmlDecode(await resposta.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
+        Assert.Contains("E-mail", html);
+        Assert.Contains("__RequestVerificationToken", html);
+    }
+
+    [Fact]
+    public async Task ModeloCsvDasListasEhBaixado()
+    {
+        var resposta = await _fabrica.CriarCliente("pt-BR").GetAsync("/Listas/modelo.csv");
+
+        Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
+        Assert.Equal("text/csv", resposta.Content.Headers.ContentType?.MediaType);
+        Assert.StartsWith("faixa;descricao", (await resposta.Content.ReadAsStringAsync()).TrimStart('﻿'));
     }
 
     [Fact]

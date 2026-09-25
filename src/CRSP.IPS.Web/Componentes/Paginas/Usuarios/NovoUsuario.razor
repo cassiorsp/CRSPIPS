@@ -1,0 +1,47 @@
+@page "/Usuarios/Novo"
+
+<Titulo Texto="@T["Novo usuário"]" />
+
+<div class="mb-3">
+    <a href="/Usuarios" class="small"><i class="bi bi-arrow-left"></i> @T["Voltar para usuários"]</a>
+</div>
+<div class="card cartao cartao-formulario">
+    <div class="card-body">
+        <EditForm Model="_dados" OnValidSubmit="CriarAsync" novalidate>
+            <DataAnnotationsValidator />
+            @if (_erro is not null)
+            {
+                <div class="alert alert-danger py-2 small">@T[_erro]</div>
+            }
+            <CamposUsuario Dados="_dados" />
+            <button type="submit" class="btn btn-primary" disabled="@_processando">@T["Criar usuário"]</button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private readonly DadosNovoUsuario _dados = new();
+    private string? _erro;
+    private bool _processando;
+
+    private async Task CriarAsync()
+    {
+        _processando = true;
+        try
+        {
+            var resultado = await Servicos.ExecutarAsync((ServicoUsuarios s) => s.CriarAsync(_dados.Nome, _dados.Email, _dados.Senha));
+            if (!resultado.Sucesso)
+            {
+                _erro = resultado.Erro;
+                return;
+            }
+
+            Avisos.SucessoAposNavegar("Usuário criado.");
+            Navegacao.NavigateTo("/Usuarios");
+        }
+        finally
+        {
+            _processando = false;
+        }
+    }
+}

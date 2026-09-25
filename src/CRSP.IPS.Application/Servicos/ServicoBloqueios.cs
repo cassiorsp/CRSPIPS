@@ -24,11 +24,11 @@ public sealed class ServicoBloqueios(
     TimeProvider relogio,
     ILogger<ServicoBloqueios> logger)
 {
-    public Task<Pagina<Bloqueio>> PesquisarAsync(FiltroBloqueios filtro, CancellationToken ct = default) =>
+    public Task<Fatia<Bloqueio>> PesquisarAsync(FiltroBloqueios filtro, CancellationToken ct = default) =>
         bloqueios.PesquisarAsync(filtro with
         {
-            Pagina = Math.Max(1, filtro.Pagina),
-            TamanhoPagina = Math.Clamp(filtro.TamanhoPagina, 10, 200)
+            Pular = Math.Max(0, filtro.Pular),
+            Quantidade = Math.Clamp(filtro.Quantidade, 1, 200)
         }, ct);
 
     public async Task<Resultado<DetalheIp>> ObterDetalheAsync(string ipTexto, CancellationToken ct = default)

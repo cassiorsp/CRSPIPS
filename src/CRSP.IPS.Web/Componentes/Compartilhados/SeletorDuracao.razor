@@ -1,0 +1,15 @@
+@* Duracao de bloqueio (1h ... permanente). *@
+@inject IStringLocalizer<Textos> T
+
+<select class="form-select" id="@Id" aria-label="@T["Duração"]" value="@Valor" @onchange="e => ValorChanged.InvokeAsync(e.Value?.ToString() ?? Valor)">
+    @foreach (var opcao in Exibicao.OpcoesDuracao)
+    {
+        <option value="@opcao.Valor">@T[opcao.Texto]</option>
+    }
+</select>
+
+@code {
+    [Parameter] public string? Id { get; set; }
+    [Parameter] public string Valor { get; set; } = "24h";
+    [Parameter] public EventCallback<string> ValorChanged { get; set; }
+}

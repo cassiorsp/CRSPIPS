@@ -1,0 +1,115 @@
+@page "/Usuarios"
+
+<Titulo Texto="@T["Usuários"]" />
+
+<div class="pagina-cheia">
+<div class="card cartao cartao-cheio">
+    <div class="card-header d-flex align-items-center">
+        <span>@T["Administradores do sistema"]</span>
+        <a href="/Usuarios/Novo" class="btn btn-sm btn-primary ms-auto"><i class="bi bi-person-plus"></i> @T["Novo usuário"]</a>
+    </div>
+    <div class="table-responsive tabela-rolagem">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>@T["Nome"]</th><th>@T["E-mail"]</th><th>@T["Situação"]</th><th>@T["Último acesso"]</th><th>@T["Último IP"]</th><th class="text-end">@T["Ações"]</th></tr></thead>
+            <tbody>
+            @foreach (var usuario in _usuarios)
+            {
+                <tr @key="usuario.Id">
+                    <td>
+                        @usuario.Nome
+                        @if (usuario.Id == _idLogado)
+                        {
+                            <span class="badge text-bg-light border ms-1">@T["você"]</span>
+                        }
+                    </td>
+                    <td>@usuario.Email</td>
+                    <td>
+                        @if (usuario.Ativo)
+                        {
+                            <span class="badge text-bg-success">@T["Ativo"]</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">@T["Inativo"]</span>
+                        }
+                    </td>
+                    <td class="small">@Exibicao.DataHora(usuario.UltimoAcessoEm)</td>
+                    <td class="small fonte-mono">@usuario.UltimoIp</td>
+                    <td class="text-end text-nowrap">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" title="@T["Redefinir senha"]" @onclick="() => AbrirSenha(usuario)">
+                            <i class="bi bi-key"></i>
+                        </button>
+                        @if (usuario.Id != _idLogado)
+                        {
+                            <button class="btn btn-sm @(usuario.Ativo ? "btn-outline-danger" : "btn-outline-success")" type="button"
+                                    title="@(usuario.Ativo ? T["Desativar"] : T["Ativar"])" @onclick="() => AlternarAsync(usuario.Id)">
+                                <i class="bi @(usuario.Ativo ? "bi-person-x" : "bi-person-check")"></i>
+                            </button>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer small text-body-secondary">@T["{0} registro(s)", _usuarios.Count]</div>
+</div>
+</div>
+
+<Modal Aberto="_alvo is not null" AbertoChanged="v => { if (!v) _alvo = null; }">
+    <Cabecalho>@T["Redefinir senha"] <span class="small text-body-secondary">@_alvo?.Email</span></Cabecalho>
+    <ChildContent>
+        <div class="modal-body">
+            <label class="form-label" for="novaSenha">@T["Nova senha"]</label>
+            <input class="form-control" type="password" id="novaSenha" autocomplete="new-password" @bind="_novaSenha" />
+            <div class="form-text">@T["Mínimo de 10 caracteres, com letras e números."]</div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" @onclick="() => _alvo = null">@T["Cancelar"]</button>
+            <button type="button" class="btn btn-primary" disabled="@_processando" @onclick="RedefinirSenhaAsync">@T["Salvar"]</button>
+        </div>
+    </ChildContent>
+</Modal>
+
+@code {
+    private IReadOnlyList<Usuario> _usuarios = [];
+    private int _idLogado;
+    private Usuario? _alvo;
+    private string? _novaSenha;
+    private bool _processando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _idLogado = await ObterIdUsuarioAsync();
+        await CarregarAsync();
+    }
+
+    private async Task CarregarAsync() => _usuarios = await Servicos.ExecutarAsync((ServicoUsuarios s) => s.ListarAsync());
+
+    private void AbrirSenha(Usuario usuario)
+    {
+        _novaSenha = null;
+        _alvo = usuario;
+    }
+
+    private async Task AlternarAsync(int id)
+    {
+        Avisos.Mostrar(await Servicos.ExecutarAsync((ServicoUsuarios s) => s.AlternarAtivoAsync(id, _idLogado)), "Usuário atualizado.");
+        await CarregarAsync();
+    }
+
+    private async Task RedefinirSenhaAsync()
+    {
+        _processando = true;
+        try
+        {
+            var resultado = await Servicos.ExecutarAsync((ServicoUsuarios s) => s.AlterarSenhaAsync(_alvo!.Id, _novaSenha ?? string.Empty));
+            if (Avisos.Mostrar(resultado, "Senha redefinida."))
+                _alvo = null;
+        }
+        finally
+        {
+            _processando = false;
+        }
+    }
+}

@@ -17,10 +17,8 @@ public sealed record Resultado<T>(bool Sucesso, string? Erro, T? Valor) : Result
     public static new Resultado<T> Falha(string erro) => new(false, erro, default);
 }
 
-public sealed record Pagina<T>(IReadOnlyList<T> Itens, int Total, int PaginaAtual, int TamanhoPagina)
-{
-    public int TotalPaginas => TamanhoPagina <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling(Total / (double)TamanhoPagina));
-}
+/// <summary>Trecho de uma consulta (rolagem infinita): os itens pedidos e o total de registros.</summary>
+public sealed record Fatia<T>(IReadOnlyList<T> Itens, int Total);
 
 public sealed record FiltroBloqueios
 {
@@ -33,8 +31,8 @@ public sealed record FiltroBloqueios
     public bool? Simulado { get; init; }
     public DateTime? DeUtc { get; init; }
     public DateTime? AteUtc { get; init; }
-    public int Pagina { get; init; } = 1;
-    public int TamanhoPagina { get; init; } = 50;
+    public int Pular { get; init; }
+    public int Quantidade { get; init; } = 50;
 }
 
 public sealed record EventoDetectado(
@@ -83,15 +81,47 @@ public sealed record ResultadoAtualizacaoGeo(bool Sucesso, int BasesAtualizadas,
 
 public sealed record ItemRanking(string Rotulo, int Quantidade, string? Complemento = null);
 
-public sealed record PontoSerie(string Rotulo, int Quantidade);
+/// <summary>Periodo do filtro do dashboard. Todos os cards, graficos e tabelas usam o mesmo periodo.</summary>
+public enum PeriodoDashboard
+{
+    Hoje = 0,
+    Dias7 = 7,
+    Dias14 = 14,
+    Dias30 = 30,
+    Dias90 = 90,
+    Dias120 = 120,
+    Dias180 = 180,
+    Dias360 = 360,
+    Tudo = -1
+}
+
+public enum GranularidadeSerie
+{
+    Hora,
+    Dia,
+    Semana
+}
+
+/// <param name="Inicio">Inicio do intervalo no horario local do servidor.</param>
+public sealed record PontoSerie(DateTime Inicio, int Quantidade);
+
+/// <summary>Contagem por hora UTC (agregada no banco), base das series do dashboard.</summary>
+public sealed record ContagemHora(DateTime HoraUtc, int Quantidade);
+
+public sealed record ResumoBloqueios(int AtivosReais, int AtivosSimulados, int Reais, int Simulados);
+
+public sealed record IpAgressor(string Ip, string? PaisCodigo, int Eventos, int Bloqueios);
 
 public sealed record IndicadoresDashboard(
+    PeriodoDashboard Periodo,
+    GranularidadeSerie Granularidade,
+    int RetencaoEventosDias,
     int BloqueiosAtivos,
     int BloqueiosSimuladosAtivos,
-    int BloqueadosHoje,
-    int BloqueadosHojeSimulados,
-    int EventosUltimas24h,
-    int PaisesUltimas24h,
+    int BloqueiosNoPeriodo,
+    int BloqueiosSimuladosNoPeriodo,
+    int EventosNoPeriodo,
+    int PaisesNoPeriodo,
     bool ModoSimulacao,
     ModoPoliticaPaises ModoPaises,
     StatusWorker? Worker,
@@ -99,10 +129,33 @@ public sealed record IndicadoresDashboard(
     IReadOnlyList<PontoSerie> SerieBloqueios,
     IReadOnlyList<PontoSerie> SerieEventos,
     IReadOnlyList<ItemRanking> TopPaises,
-    IReadOnlyList<ItemRanking> TopIps,
+    IReadOnlyList<IpAgressor> TopIps,
     IReadOnlyList<ItemRanking> TopUrls,
     IReadOnlyList<ItemRanking> EventosPorFonte,
     IReadOnlyList<Bloqueio> BloqueiosRecentes);
+
+/// <summary>Filtros do Monitor. Nulo = todos.</summary>
+public sealed record FiltroEventos(TipoFonte? Fonte = null, string? PaisCodigo = null, int? CodigoStatus = null);
+
+/// <summary>Valores presentes nos eventos registrados, para preencher os filtros do Monitor.</summary>
+public sealed record OpcoesFiltroEventos(IReadOnlyList<string> Paises, IReadOnlyList<int> CodigosStatus);
+
+/// <summary>Linha lida de um CSV de importacao (lista branca/negra).</summary>
+public sealed record LinhaImportacao(int Numero, string Faixa, string? Descricao);
+
+/// <param name="Mensagem">Texto em pt-BR, usado tambem como chave de traducao.</param>
+public sealed record ErroImportacao(int Linha, string Valor, string Mensagem);
+
+public sealed record ResultadoImportacao(int Adicionadas, int Duplicadas, IReadOnlyList<ErroImportacao> Erros);
+
+public sealed record DadosListaExterna(
+    string Nome,
+    string? Descricao,
+    IReadOnlyList<string> Urls,
+    FormatoListaExterna Formato,
+    int IntervaloHoras,
+    int LimiteEntradas,
+    ModoListaExterna Modo);
 
 public sealed record DetalheIp(
     string Ip,
