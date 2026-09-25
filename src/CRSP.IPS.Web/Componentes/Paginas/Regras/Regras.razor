@@ -24,6 +24,10 @@
                                     <div class="small text-body-secondary">@T[regra.Descricao]</div>
                                 }
                                 <code class="small text-break d-block mt-1">@regra.Padrao</code>
+                                @if (!string.IsNullOrEmpty(regra.UrlsIgnoradas))
+                                {
+                                    <div class="small text-body-secondary mt-1"><i class="bi bi-slash-circle me-1"></i>@T["Ignora:"] <code class="text-break">@regra.UrlsIgnoradas</code></div>
+                                }
                             </td>
                             <td class="text-nowrap">@T[Exibicao.Rotulo(regra.Fonte)]</td>
                             <td class="small">@T[Exibicao.Rotulo(regra.Criterio)]</td>

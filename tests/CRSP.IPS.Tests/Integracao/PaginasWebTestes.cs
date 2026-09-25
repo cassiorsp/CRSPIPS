@@ -60,7 +60,7 @@ public class PaginasWebTestes : IClassFixture<PaginasWebTestes.FabricaPainel>
         var html = await resposta.Content.ReadAsStringAsync();
 
         Assert.True(resposta.StatusCode == HttpStatusCode.OK, $"{url}: {(int)resposta.StatusCode}\n{html[..Math.Min(html.Length, 2000)]}");
-        Assert.Contains(textoEsperado, WebUtility.HtmlDecode(html));
+        AssertContemTexto(url, textoEsperado, html);
         _fabrica.SalvarAmostra(url, html);
     }
 
@@ -75,7 +75,7 @@ public class PaginasWebTestes : IClassFixture<PaginasWebTestes.FabricaPainel>
         var html = await resposta.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
-        Assert.Contains(textoEsperado, WebUtility.HtmlDecode(html));
+        AssertContemTexto(url, textoEsperado, html);
     }
 
     [Fact]
@@ -120,6 +120,17 @@ public class PaginasWebTestes : IClassFixture<PaginasWebTestes.FabricaPainel>
 
         Assert.Equal("DENY", resposta.Headers.GetValues("X-Frame-Options").Single());
         Assert.Contains("script-src 'self'", resposta.Headers.GetValues("Content-Security-Policy").Single());
+    }
+
+    /// <summary>Em caso de falha mostra o conteudo principal da pagina (facilita diagnosticar falhas intermitentes).</summary>
+    private static void AssertContemTexto(string url, string textoEsperado, string html)
+    {
+        var texto = WebUtility.HtmlDecode(html);
+        if (texto.Contains(textoEsperado))
+            return;
+
+        var inicio = Math.Max(0, texto.IndexOf("<main", StringComparison.Ordinal));
+        Assert.Fail($"{url}: texto \"{textoEsperado}\" nao encontrado. Trecho:\n{texto.Substring(inicio, Math.Min(3000, texto.Length - inicio))}");
     }
 
     public sealed class FabricaPainel : WebApplicationFactory<Program>

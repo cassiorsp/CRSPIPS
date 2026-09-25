@@ -10,8 +10,8 @@ using Microsoft.Extensions.Logging;
 namespace CRSP.IPS.Application.Motor;
 
 /// <summary>
-/// Recebe eventos normalizados das fontes, aplica protecao, politica de paises (modo reativo) e regras,
-/// e registra bloqueios com punicao progressiva.
+/// Recebe eventos normalizados das fontes, aplica protecao, politica de paises (modo reativo), listas externas
+/// em modo Reativa e regras, e registra bloqueios com punicao progressiva.
 /// </summary>
 public sealed class ServicoDeteccao(
     IRepositorioConfiguracao configuracoes,
@@ -69,11 +69,13 @@ public sealed class ServicoDeteccao(
         foreach (var evento in lote.OrderBy(e => e.OcorridoEmUtc))
         {
             var ip = evento.Ip.ToString();
-            foreach (var listaId in mapaListasExternas.ListasQueContem(evento.Ip))
+            var listasDoIp = mapaListasExternas.ListasQueContem(evento.Ip);
+            foreach (var listaId in listasDoIp)
             {
                 var atual = coincidencias.GetValueOrDefault((listaId, ip));
                 coincidencias[(listaId, ip)] = (atual.Quantidade + 1, evento);
             }
+            var listaReativa = mapaListasExternas.ObterListaReativa(listasDoIp);
 
             if (ipsBloqueadosReais.Contains(ip) || conjuntoProtecao.Contem(evento.Ip))
                 continue;
@@ -110,6 +112,14 @@ public sealed class ServicoDeteccao(
                 {
                     novosBloqueios[ip] = await CriarBloqueioAsync(evento.Ip, configuracao, OrigemBloqueio.Pais,
                         $"País não permitido: {local?.PaisCodigo}", regra.Id, 1, local, agora, ct);
+                    break;
+                }
+
+                // Lista externa em modo Reativa: IP ja conhecido como malicioso nao ganha o limite da regra.
+                if (listaReativa is not null)
+                {
+                    novosBloqueios[ip] = await CriarBloqueioAsync(evento.Ip, configuracao, OrigemBloqueio.ListaExterna,
+                        $"Lista externa: {listaReativa}", regra.Id, 1, local, agora, ct);
                     break;
                 }
 

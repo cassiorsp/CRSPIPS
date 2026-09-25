@@ -89,7 +89,8 @@ Assim o site no IIS não precisa de permissão de administrador.
 - **16 regras prontas**, fáceis de ligar, desligar e ajustar, e regras próprias com expressões regulares.
 - **Punição progressiva**: 1 hora na primeira vez, depois 24 horas, 7 dias, 30 dias.
 - **Política de países**: permitir só o Brasil no RDP, por exemplo.
-- **Listas negras**: manual e **listas públicas atualizadas todo dia** (Spamhaus DROP, DShield e outras). Você também pode cadastrar **suas próprias listas externas** (qualquer URL HTTPS).
+- **Listas negras**: manual e **listas públicas atualizadas todo dia** (Spamhaus DROP, DShield e outras), no modo **Ativa** (direto no firewall) ou **Reativa** (bloqueia o IP da lista na primeira tentativa suspeita, sem encher o firewall). Você também pode cadastrar **suas próprias listas externas** (qualquer URL HTTPS).
+- **Regras do firewall separadas pela origem**: `CRSPIPS_LOGIIS_*`, `CRSPIPS_HTTPERR_*`, `CRSPIPS_EVENTOWINDOWS_*`, manuais, lista negra e listas externas.
 - **Lista branca**: IPs que nunca são bloqueados. Os IPs do servidor e dos administradores do painel já são protegidos automaticamente.
 - **Importação por CSV** na lista branca e na lista negra, com modelo pronto para baixar.
 - **Geolocalização** com MaxMind GeoLite2, baixada e atualizada automaticamente.
@@ -268,6 +269,18 @@ Em **Regras de detecção** estão as 16 regras prontas. Os ajustes mais comuns:
 | Varredura de Exchange/OWA | 3 em 10 min | **Desative** se o servidor tem Exchange |
 | Excesso de 401/403 | desativada | Deixe desligada se usa autenticação Windows ou app com token |
 
+**Rotas que devolvem 404 de propósito** (ex.: uma API que responde 404 quando o registro não existe): edite a regra
+**Excesso de 404** e preencha **URLs ignoradas** com uma expressão regular. Ela é testada contra a URL e contra
+"MÉTODO URL":
+
+| Quero ignorar | URLs ignoradas |
+|---|---|
+| Só o POST da rota | `^POST /api/configuracao/empresa` |
+| A rota com qualquer método | `^/api/configuracao/empresa` |
+| Várias rotas | `^/api/configuracao/empresa\|^/favicon\.ico\|^/img/site\.webmanifest` |
+
+O campo existe em todas as regras de Log IIS e HTTPERR e passa a valer em até 5 segundos (o serviço relê as regras a cada ciclo).
+
 ### ✅ 5. Política de países (recomendado para RDP)
 
 Se só pessoas do Brasil acessam o RDP, em **Países** escolha:
@@ -327,35 +340,53 @@ Em **Listas → Listas externas** ficam as listas públicas de IPs maliciosos. O
 
 | Lista | O que contém | Padrão | Recomendação |
 |---|---|---|---|
-| **Spamhaus DROP** | Redes de criminosos, sem nenhum uso legítimo | Ativa | Manter ativa |
-| **DShield Top 20** | As 20 redes que mais atacam no mundo | Ativa | Manter ativa |
-| **IPsum nível 3+** | IPs em 3 ou mais listas de ataque | Desativada | Avaliar antes |
-| **CINS Army** | IPs com pior reputação em sensores de segurança | Desativada | Avaliar antes |
-| **blocklist.de** | IPs reportados nas últimas 48 h | Desativada | Mais ruído |
+| **Spamhaus DROP** | Redes de criminosos, sem nenhum uso legítimo (~1.500 faixas) | Ativa | Manter **Ativa** |
+| **DShield Top 20** | As 20 redes que mais atacam no mundo | Ativa | Manter **Ativa** |
+| **IPsum nível 3+** | IPs em 3 ou mais listas de ataque (dezenas de milhares) | Desativada | **Reativa** |
+| **CINS Army** | IPs com pior reputação em sensores de segurança | Desativada | **Reativa** |
+| **blocklist.de** | IPs reportados nas últimas 48 h (mais ruído) | Desativada | **Reativa** |
 
-Cada lista tem três modos:
+Cada lista tem quatro modos (botões no cartão da lista e campo **Modo inicial** ao cadastrar):
 
-- **Desativada:** não é baixada.
-- **Avaliação:** é baixada e mostra as **coincidências**, ou seja, quais IPs da lista acessaram seus sites. **Não bloqueia.**
-- **Ativa:** é baixada e bloqueada no firewall.
+| Modo | Baixa? | Vai para o firewall? | O que acontece com um IP da lista |
+|---|---|---|---|
+| **Desativada** | não | não | nada |
+| **Avaliação** | sim | não | só aparece nas **coincidências** (quais IPs da lista acessaram seus sites). **Não bloqueia.** |
+| **Reativa** | sim | **não** | é bloqueado na **primeira tentativa suspeita** (qualquer evento que case com uma regra ativa: 404, `/.env`, senha errada no RDP…), sem esperar o limite da regra. Uma visita normal ao site não bloqueia. |
+| **Ativa** | sim | **sim** | todas as faixas são bloqueadas no firewall antes de chegar ao servidor |
 
-**Como avaliar uma lista antes de ativar:**
+**Ativa ou Reativa?**
+
+- **Ativa** para listas pequenas e de altíssima confiança (Spamhaus, DShield): bloqueiam até o primeiro pacote e
+  custam quase nada ao firewall.
+- **Reativa** para listas grandes de IPs individuais (IPsum, CINS, blocklist.de): não enchem o firewall com dezenas
+  de milhares de endereços e não derrubam quem só navega. Essas listas trazem IPs dinâmicos e CGNAT de operadoras,
+  que depois vão para usuários comuns; na Reativa, só é bloqueado quem realmente tentar atacar.
+- O bloqueio da Reativa é um bloqueio comum do CRSPIPS: aparece em **Bloqueios** com a origem *Lista externa* e o
+  motivo `Lista externa: <nome>`, segue a punição progressiva e vai para a regra da fonte do evento
+  (`CRSPIPS_LOGIIS_*`, `CRSPIPS_HTTPERR_*` ou `CRSPIPS_EVENTOWINDOWS_*`).
+
+**Como avaliar uma lista antes de usar:**
 
 1. Coloque a lista em **Avaliação**.
-2. Espere alguns dias e veja a tabela **Coincidências com o tráfego real**.
-3. Se só aparecerem varreduras e ataques, pode **Ativar**.
-4. Se aparecerem acessos normais de operadoras brasileiras (Vivo, Claro, TIM) ou de parceiros, **não ative**:
-   a lista bloquearia usuários legítimos. Isso acontece com IPs dinâmicos e com o CGNAT das operadoras de celular.
+2. Espere alguns dias e veja a tabela **Coincidências com o tráfego real** (a coluna **Bloqueio** mostra a situação
+   de cada IP).
+3. Se só aparecerem varreduras e ataques, pode passar para **Reativa** ou **Ativa**.
+4. Se aparecerem acessos normais de operadoras brasileiras (Vivo, Claro, TIM) ou de parceiros, prefira **Reativa**
+   (ou deixe desativada): na **Ativa** a lista bloquearia usuários legítimos.
 
 **Proteções das listas:**
 
-- Nada que esteja na lista branca, nas redes internas ou nos IPs do servidor é bloqueado, mesmo que venha na lista.
+- Nada que esteja na lista branca, nas redes internas, nos IPs do servidor ou nos IPs dos administradores é
+  bloqueado, mesmo que venha na lista (vale para Reativa e Ativa).
 - Se um download falhar ou vier corrompido, a versão anterior continua valendo.
-- As listas externas ficam em regras próprias no firewall (`CRSPIPS_ListaExterna_*`), separadas dos bloqueios do motor.
+- As listas em modo **Ativa** ficam em regras próprias no firewall (`CRSPIPS_LISTAEXTERNA_*`), separadas dos
+  bloqueios do motor.
 
-**Adicionar uma lista própria:** em **Listas → Listas externas → Nova lista**, informe o nome, uma ou mais URLs HTTPS
-e o formato (texto com um IP ou faixa por linha, Spamhaus JSON ou DShield). Comece em **Avaliação**. As listas
-cadastradas por você podem ser excluídas; as do catálogo só podem ser desativadas.
+**Adicionar uma lista própria:** em **Listas → Listas externas → Nova lista**, informe o nome, uma ou mais URLs HTTPS,
+o formato (texto com um IP ou faixa por linha, Spamhaus JSON ou DShield), o intervalo de atualização e o **Modo
+inicial** (Desativada, Avaliação, Reativa ou Ativa). Comece em **Avaliação**. As listas cadastradas por você podem ser
+excluídas; as do catálogo só podem ser desativadas.
 
 > Em **modo simulação**, as listas são baixadas, mas nada vai para o firewall.
 
@@ -383,14 +414,39 @@ powershell -ExecutionPolicy Bypass -File .\ferramentas\SimularAtaque.ps1
 
 ### Ver as regras criadas no firewall
 
+Todas as regras ficam no grupo **CRSPIPS**, são de entrada e têm até 1.000 endereços cada. O número no final cresce
+conforme a quantidade de endereços (`_00001`, `_00002`…):
+
+| Regra | O que contém |
+|---|---|
+| `CRSPIPS_LOGIIS_00001` | IPs bloqueados por regras do **Log IIS** (404, varreduras, injeção SQL…) |
+| `CRSPIPS_HTTPERR_00001` | IPs bloqueados por regras do **HTTPERR** (host inexistente, requisições malformadas) |
+| `CRSPIPS_EVENTOWINDOWS_00001` | IPs bloqueados por **eventos do Windows** (falha de login RDP, SQL Server) |
+| `CRSPIPS_MANUAL_00001` | Bloqueios manuais feitos no painel |
+| `CRSPIPS_LISTANEGRA_00001` | Lista negra manual |
+| `CRSPIPS_LISTAEXTERNA_00001` | Listas externas em modo **Ativa** |
+| `CRSPIPS_PAIS_BLOQUEAR_TCP_00001` / `_UDP_` | Política de países em "Firewall por portas", modo Bloquear países listados |
+| `CRSPIPS_PAIS_PERMITIR_TCP_00001` / `_UDP_` | Política de países em "Firewall por portas", modo Permitir somente |
+
+Os bloqueios por país (modos reativos) e por lista externa **Reativa** vão para a regra da fonte do evento que os
+gerou (LOGIIS, HTTPERR ou EVENTOWINDOWS). Ao atualizar de uma versão anterior, as regras com os nomes antigos
+(`CRSPIPS_Bloqueio_001`, `CRSPIPS_ListaExterna_001`, `CRSPIPS_Pais_…`) são apagadas e recriadas com os nomes novos
+na primeira conferência do serviço (em até 5 minutos).
+
 ```powershell
-Get-NetFirewallRule -Group CRSPIPS | Select-Object DisplayName, Enabled, Action
+Get-NetFirewallRule -Group CRSPIPS | Sort-Object DisplayName | Format-Table DisplayName, Enabled, Action
 ```
 
-Endereços bloqueados em uma regra:
+Quantos endereços há em cada regra:
 
 ```powershell
-Get-NetFirewallRule -DisplayName CRSPIPS_Bloqueio_001 | Get-NetFirewallAddressFilter | Select-Object -ExpandProperty RemoteAddress
+Get-NetFirewallRule -Group CRSPIPS | ForEach-Object { [pscustomobject]@{ Regra = $_.DisplayName; Enderecos = ($_ | Get-NetFirewallAddressFilter).RemoteAddress.Count } }
+```
+
+Endereços de uma regra:
+
+```powershell
+Get-NetFirewallRule -DisplayName CRSPIPS_LOGIIS_00001 | Get-NetFirewallAddressFilter | Select-Object -ExpandProperty RemoteAddress
 ```
 
 Você também pode abrir `wf.msc` → **Regras de Entrada** e filtrar pelo grupo **CRSPIPS**.

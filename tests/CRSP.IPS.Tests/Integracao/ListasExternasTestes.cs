@@ -131,6 +131,36 @@ public class ListasExternasTestes
     }
 
     [Fact]
+    public async Task ModoReativa_BloqueiaNoPrimeiroEventoSuspeitoSemIrAoFirewall()
+    {
+        await using var ambiente = await AmbienteTeste.CriarAsync();
+        await DesligarSimulacaoAsync(ambiente);
+        ambiente.BaixadorListas.Conteudos["https://cinsscore.com/list/ci-badguys.txt"] = "203.0.113.50\n203.0.113.51\n";
+
+        var cins = await ObterListaAsync(ambiente, "CINS Army");
+        var resultado = await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoListasExternas>().DefinirModoAsync(cins.Id, ModoListaExterna.Reativa));
+        Assert.True(resultado.Sucesso, resultado.Erro);
+        await AtualizarAsync(ambiente);
+
+        var agora = ambiente.Relogio.GetUtcNow().UtcDateTime;
+        var visitaNormal = new EventoDetectado(EnderecoIp.Converter("203.0.113.51"), TipoFonte.LogIis, agora, "GET", "/produtos", 200);
+        var umUnico404 = new EventoDetectado(EnderecoIp.Converter("203.0.113.50"), TipoFonte.LogIis, agora, "GET", "/nao-existe", 404);
+
+        // A regra "Excesso de 404" pede 30 ocorrencias; o IP da lista reativa cai no primeiro 404.
+        Assert.Equal(1, await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoDeteccao>().ProcessarAsync([visitaNormal, umUnico404])));
+        await SincronizarAsync(ambiente);
+
+        var bloqueio = await ambiente.ExecutarAsync(p => p.GetRequiredService<IRepositorioBloqueios>().ObterAtivoPorIpAsync("203.0.113.50"));
+        Assert.Equal(OrigemBloqueio.ListaExterna, bloqueio!.Origem);
+        Assert.Equal("Lista externa: CINS Army", bloqueio.Motivo);
+        Assert.Null(await ambiente.ExecutarAsync(p => p.GetRequiredService<IRepositorioBloqueios>().ObterAtivoPorIpAsync("203.0.113.51")));
+
+        Assert.Empty(ambiente.Firewall.ListasExternas);
+        Assert.Equal(["203.0.113.50"], ambiente.Firewall.Enderecos(ConjuntoRegrasFirewall.LogIis).Select(f => f.ParaTextoFirewall()));
+        Assert.Equal(2, (await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoListasExternas>().ListarCoincidenciasAsync())).Count);
+    }
+
+    [Fact]
     public async Task ListaPersonalizada_CriaBaixaAplicaEExclui()
     {
         await using var ambiente = await AmbienteTeste.CriarAsync();

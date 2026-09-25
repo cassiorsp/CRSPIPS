@@ -14,7 +14,13 @@
     </div>
 }
 
-<div class="d-flex mb-3">
+<div class="d-flex flex-wrap align-items-start gap-3 mb-3">
+    <ul class="legenda-modos small text-body-secondary mb-0">
+        @foreach (var modo in Exibicao.ModosListaExterna)
+        {
+            <li><strong>@T[Exibicao.Rotulo(modo)]:</strong> @T[Exibicao.Descrever(modo)]</li>
+        }
+    </ul>
     <button class="btn btn-sm btn-primary ms-auto" type="button" @onclick="AbrirNovaLista"><i class="bi bi-plus-lg"></i> @T["Nova lista"]</button>
 </div>
 
@@ -43,6 +49,9 @@
                                     break;
                                 case ModoListaExterna.Avaliacao:
                                     <span class="badge text-bg-warning">@T["Em avaliação"]</span>
+                                    break;
+                                case ModoListaExterna.Reativa:
+                                    <span class="badge text-bg-primary" title="@T[Exibicao.Descrever(ModoListaExterna.Reativa)]">@T["Reativa: bloqueia na 1ª tentativa"]</span>
                                     break;
                                 default:
                                     if (_modoSimulacao)
@@ -92,10 +101,10 @@
 
                     <div class="d-flex flex-wrap gap-2 align-items-center">
                         <div class="btn-group btn-group-sm" role="group">
-                            @foreach (var modo in Enum.GetValues<ModoListaExterna>())
+                            @foreach (var modo in Exibicao.ModosListaExterna)
                             {
                                 <button type="button" class="btn @(lista.Modo == modo ? "btn-primary" : "btn-outline-primary")" disabled="@(lista.Modo == modo || _processando)"
-                                        @onclick="() => DefinirModoAsync(lista.Id, modo)">@T[Exibicao.Rotulo(modo)]</button>
+                                        title="@T[Exibicao.Descrever(modo)]" @onclick="() => DefinirModoAsync(lista.Id, modo)">@T[Exibicao.Rotulo(modo)]</button>
                             }
                         </div>
                         @if (lista.EstaEmUso)
@@ -118,7 +127,7 @@
         <i class="bi bi-intersect me-1"></i>@T["Coincidências com o tráfego real"]
     </div>
     <div class="card-body small text-body-secondary pb-2">
-        @T["IPs de alguma lista (em avaliação ou ativa) que chegaram ao servidor. Use para avaliar uma lista antes de ativá-la: varreduras e ataques confirmam a lista; acessos normais de operadoras brasileiras ou de parceiros indicam risco de bloquear usuários legítimos."]
+        @T["IPs de alguma lista (em avaliação, reativa ou ativa) que chegaram ao servidor. Use para avaliar uma lista antes de ativá-la: varreduras e ataques confirmam a lista; acessos normais de operadoras brasileiras ou de parceiros indicam risco de bloquear usuários legítimos."]
     </div>
     <div class="table-responsive tabela-rolagem">
         <table class="table table-sm table-hover align-middle mb-0">
@@ -195,15 +204,16 @@
                 <div class="col-md-4">
                     <label class="form-label" for="modoLista">@T["Modo inicial"]</label>
                     <select class="form-select" id="modoLista" @bind="_nova.Modo">
-                        @foreach (var modo in Enum.GetValues<ModoListaExterna>())
+                        @foreach (var modo in Exibicao.ModosListaExterna)
                         {
                             <option value="@modo">@T[Exibicao.Rotulo(modo)]</option>
                         }
                     </select>
+                    <div class="form-text">@T[Exibicao.Descrever(_nova.Modo)]</div>
                 </div>
             </div>
             <div class="form-text mt-3">
-                @T["Texto: um IP, CIDR ou intervalo por linha (linhas com # ou ; são comentários). Comece em Avaliação e confira as coincidências antes de ativar: a lista passa pela mesma proteção (lista branca, servidor e administradores)."]
+                @T["Texto: um IP, CIDR ou intervalo por linha (linhas com # ou ; são comentários). Comece em Avaliação e confira as coincidências antes de usar Reativa ou Ativa: a lista passa pela mesma proteção (lista branca, servidor e administradores)."]
             </div>
         </div>
         <div class="modal-footer">
@@ -244,9 +254,18 @@
             return _modoSimulacao ? ("text-bg-info", "Seria bloqueado") : ("text-bg-danger", "Bloqueado pela lista");
 
         if (_bloqueiosAtivos.TryGetValue(coincidencia.Ip, out var bloqueio))
-            return bloqueio.Simulado ? ("text-bg-info", "Simulado") : ("text-bg-danger", "Bloqueado por regra");
+        {
+            if (bloqueio.Simulado)
+                return ("text-bg-info", "Simulado");
+            return bloqueio.Origem == OrigemBloqueio.ListaExterna
+                ? ("text-bg-danger", "Bloqueado pela lista (reativa)")
+                : ("text-bg-danger", "Bloqueado por regra");
+        }
 
-        return ("text-bg-secondary", "Não bloqueado");
+        // Reativa: so bloqueia quando o IP gerar um evento suspeito; ate la, os acessos normais passam.
+        return lista?.Modo == ModoListaExterna.Reativa
+            ? ("text-bg-warning", "Aguardando tentativa suspeita")
+            : ("text-bg-secondary", "Não bloqueado");
     }
 
     private string NomeLista(int id) => _listas.FirstOrDefault(l => l.Id == id)?.Nome ?? "—";

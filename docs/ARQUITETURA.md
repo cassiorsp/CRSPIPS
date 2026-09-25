@@ -56,13 +56,27 @@ e desfaz alterações manuais feitas no firewall.
 
 ```
 Fontes (IFonteEventos)           ServicoDeteccao                          ServicoSincronizacaoFirewall
-  LeitorLogIis    u_ex*.log   →    proteção (lista branca, servidor,   →    Bloqueios:        CRSPIPS_Bloqueio_NNN
-  LeitorHttpErr   httperr*.log     admins)                                   Listas externas:  CRSPIPS_ListaExterna_NNN
-  LeitorEventosWindows             política de países                       expiração
-    4625 Security                  regras (janela deslizante em memória)  ServicoPoliticaPaisesFirewall
-    140  RdpCoreTS                 punição progressiva                       CRSPIPS_Pais_* (portas TCP/UDP)
-    18456 SQL Server               coincidências com listas externas
+  LeitorLogIis    u_ex*.log   →    proteção (lista branca, servidor,   →    CRSPIPS_LOGIIS_00001
+  LeitorHttpErr   httperr*.log     admins)                                   CRSPIPS_HTTPERR_00001
+  LeitorEventosWindows             política de países                       CRSPIPS_EVENTOWINDOWS_00001
+    4625 Security                  listas externas em modo Reativa          CRSPIPS_MANUAL_00001
+    140  RdpCoreTS                 regras (janela deslizante em memória)    CRSPIPS_LISTANEGRA_00001
+    18456 SQL Server               punição progressiva                      CRSPIPS_LISTAEXTERNA_00001 (modo Ativa)
+                                   coincidências com listas externas        expiração
+                                                                          ServicoPoliticaPaisesFirewall
+                                                                            CRSPIPS_PAIS_{BLOQUEAR|PERMITIR}_{TCP|UDP|TODOS}_00001
 ```
+
+- **Regras do firewall por origem** (`ConjuntoRegrasFirewall`, `FirewallWindows.Identificar`): cada bloqueio vai para o
+  conjunto da fonte da regra que o gerou (`Bloqueio.RegraId` → `RegraDeteccao.Fonte`); sem regra, `MANUAL`. Bloqueios por
+  país e por lista externa reativa guardam a regra do evento suspeito, então caem em LOGIIS/HTTPERR/EVENTOWINDOWS.
+  Até 1.000 endereços por regra, número com 5 dígitos. Na primeira verificação completa, `RemoverRegrasObsoletas` apaga
+  as regras com nomes antigos (`CRSPIPS_Bloqueio_`, `CRSPIPS_ListaExterna_`, `CRSPIPS_Pais_`, comparação exata de
+  maiúsculas) e o estado em memória é zerado para todos os conjuntos serem recriados.
+- **Modos das listas externas** (`ModoListaExterna`): Desativada, Avaliação (só coincidências), **Reativa** (não vai ao
+  firewall; `MapaListasExternas.ObterListaReativa` + `ServicoDeteccao` bloqueiam o IP no primeiro evento que casar com
+  qualquer regra ativa, com `OrigemBloqueio.ListaExterna` e motivo `Lista externa: <nome>`) e Ativa (conjunto
+  `CRSPIPS_LISTAEXTERNA_*`, fora do modo simulação).
 
 - **Leitura incremental**: a posição de cada arquivo (bytes) e canal do Event Log (EventRecordID) fica em `PosicoesLeitura`.
   Arquivos que já existiam na primeira execução são lidos a partir do fim, para não bloquear pelo histórico.
@@ -70,6 +84,8 @@ Fontes (IFonteEventos)           ServicoDeteccao                          Servic
   (pasta `W3SVCn`, campo `s-siteid`) traduzido pelo `applicationHost.config`.
 - **Regras** no modelo *jail*: fonte + critério (código HTTP, regex de URL, motivo HTTPERR, ID de evento) + limite em uma janela.
   As regex usam `RegexOptions.NonBacktracking` (tempo linear, sem timeout); padrões não suportados caem no motor tradicional.
+  Regras web podem ter `UrlsIgnoradas` (regex testada contra a URL e contra "MÉTODO URL"): requisições que casam não
+  contam, ex.: `^POST /api/configuracao/empresa` para uma API que responde 404 como resposta de negócio.
 - **Contagem em memória** (`ContadorJanelaDeslizante`): o banco recebe só amostras (até 20 por IP, regra e hora) e decisões.
 - **Punição progressiva** (`PoliticaProgressao`): cada reincidência dentro da janela sobe um nível na lista de tempos.
 - **Modo simulação**: bloqueios automáticos são registrados com `Simulado = true` e não vão para o firewall.

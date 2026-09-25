@@ -493,3 +493,9 @@ body {
         min-height: 0;
     }
 }
+
+/* Legenda dos modos das listas externas. */
+.legenda-modos {
+    padding-left: 1.1rem;
+    flex: 1 1 32rem;
+}

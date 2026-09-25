@@ -48,14 +48,29 @@ public sealed record EventoDetectado(
     string? Detalhe = null,
     string? Site = null);
 
-/// <summary>Grupos de regras de bloqueio no firewall, cada um com prefixo proprio (facil de identificar no wf.msc).</summary>
+/// <summary>
+/// Grupos de regras de bloqueio no firewall, cada um com prefixo proprio (facil de identificar no wf.msc).
+/// Os bloqueios automaticos ficam separados pela fonte da regra que os gerou.
+/// </summary>
 public enum ConjuntoRegrasFirewall
 {
-    /// <summary>Bloqueios do motor e lista negra manual: CRSPIPS_Bloqueio_NNN.</summary>
-    Bloqueios = 1,
+    /// <summary>Bloqueios gerados por regras do log do IIS: CRSPIPS_LOGIIS_00001.</summary>
+    LogIis = 1,
 
-    /// <summary>Listas externas (Spamhaus, DShield...): CRSPIPS_ListaExterna_NNN.</summary>
-    ListasExternas = 2
+    /// <summary>Bloqueios gerados por regras do HTTPERR: CRSPIPS_HTTPERR_00001.</summary>
+    HttpErr = 2,
+
+    /// <summary>Bloqueios gerados por eventos do Windows (RDP, SQL Server): CRSPIPS_EVENTOWINDOWS_00001.</summary>
+    EventoWindows = 3,
+
+    /// <summary>Bloqueios manuais (sem regra de origem): CRSPIPS_MANUAL_00001.</summary>
+    Manual = 4,
+
+    /// <summary>Lista negra manual: CRSPIPS_LISTANEGRA_00001.</summary>
+    ListaNegra = 5,
+
+    /// <summary>Listas externas em modo Ativa (Spamhaus, DShield...): CRSPIPS_LISTAEXTERNA_00001.</summary>
+    ListasExternas = 6
 }
 
 public sealed record PlanoRestricaoPaises(
@@ -190,7 +205,8 @@ public sealed record DadosRegra(
     string Padrao,
     int LimiteOcorrencias,
     int JanelaSegundos,
-    bool Ativa);
+    bool Ativa,
+    string? UrlsIgnoradas = null);
 
 public sealed record DadosConfiguracaoMotor(
     bool ModoSimulacao,

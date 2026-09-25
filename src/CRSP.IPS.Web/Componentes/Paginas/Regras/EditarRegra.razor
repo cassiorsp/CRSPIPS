@@ -65,6 +65,15 @@
                             <InputNumber id="janela" class="form-control" min="1" max="86400" @bind-Value="_dados.JanelaSegundos" />
                             <MensagemValidacao Para="() => _dados.JanelaSegundos" />
                         </div>
+                        @if (_dados.Fonte != TipoFonte.EventoWindows)
+                        {
+                            <div class="col-12">
+                                <label class="form-label" for="urlsIgnoradas">@T["URLs ignoradas (regex, opcional)"]</label>
+                                <InputText id="urlsIgnoradas" class="form-control fonte-mono" placeholder="^POST /api/configuracao/empresa" @bind-Value="_dados.UrlsIgnoradas" />
+                                <div class="form-text">@T["Requisições que casam com esta expressão não contam para a regra. Ela é testada contra a URL (ex.: ^/api/configuracao/empresa, qualquer método) e contra \"MÉTODO URL\" (ex.: ^POST /api/configuracao/empresa, só o POST). Várias rotas: separe com | (ex.: ^/favicon\\.ico|^/img/)."]</div>
+                                <MensagemValidacao Para="() => _dados.UrlsIgnoradas" />
+                            </div>
+                        }
                     </div>
                     <div class="mt-4 d-flex gap-2">
                         <button type="submit" class="btn btn-primary">@T["Salvar"]</button>
@@ -123,7 +132,8 @@
             Padrao = regra.Padrao,
             LimiteOcorrencias = regra.LimiteOcorrencias,
             JanelaSegundos = regra.JanelaSegundos,
-            Ativa = regra.Ativa
+            Ativa = regra.Ativa,
+            UrlsIgnoradas = regra.UrlsIgnoradas
         };
     }
 
@@ -131,7 +141,8 @@
     {
         var resultado = await Servicos.ExecutarAsync((ServicoRegras s) => s.SalvarAsync(Id, new DadosRegra(
             _dados.Nome, _dados.Descricao, _dados.Fonte, _dados.Criterio, _dados.Padrao,
-            _dados.LimiteOcorrencias, _dados.JanelaSegundos, _dados.Ativa)));
+            _dados.LimiteOcorrencias, _dados.JanelaSegundos, _dados.Ativa,
+            _dados.Fonte == TipoFonte.EventoWindows ? null : _dados.UrlsIgnoradas)));
 
         if (!resultado.Sucesso)
         {
@@ -167,5 +178,8 @@
         public int JanelaSegundos { get; set; } = 60;
 
         public bool Ativa { get; set; } = true;
+
+        [StringLength(1000, ErrorMessage = "Texto muito longo.")]
+        public string? UrlsIgnoradas { get; set; }
     }
 }

@@ -24,6 +24,12 @@ public interface IServicoFirewall
     IReadOnlyList<string> ListarRegrasPermissivasNasPortas(IReadOnlyList<int> portas);
 
     void DefinirRegraHabilitada(string nome, bool habilitada);
+
+    /// <summary>
+    /// Remove regras com nomes de versoes anteriores (ex.: CRSPIPS_Bloqueio_001). Retorna quantas removeu;
+    /// o chamador reaplica os conjuntos atuais em seguida.
+    /// </summary>
+    int RemoverRegrasObsoletas();
 }
 
 public interface IServicoGeolocalizacao

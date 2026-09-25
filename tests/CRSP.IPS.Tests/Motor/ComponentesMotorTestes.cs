@@ -57,6 +57,36 @@ public class ComponentesMotorTestes
     }
 
     [Fact]
+    public void Avaliador_UrlsIgnoradasPorRotaOuPorMetodo()
+    {
+        var avaliador = new AvaliadorRegras();
+        var ip = EnderecoIp.Converter("203.0.113.7");
+        EventoDetectado Evento(string metodo, string url) => new(ip, TipoFonte.LogIis, Base, metodo, url, 404);
+
+        var soPost = RegraDeteccao.Criar("404", null, TipoFonte.LogIis, TipoCriterio.CodigoStatus, "404", 30, 60, true, Base,
+            urlsIgnoradas: "^POST /api/configuracao/empresa");
+        Assert.False(avaliador.Corresponde(soPost, Evento("POST", "/api/configuracao/empresa")));
+        Assert.False(avaliador.Corresponde(soPost, Evento("post", "/API/Configuracao/Empresa?id=3")));
+        Assert.True(avaliador.Corresponde(soPost, Evento("GET", "/api/configuracao/empresa")));
+        Assert.True(avaliador.Corresponde(soPost, Evento("POST", "/api/outra")));
+
+        var rotaInteira = RegraDeteccao.Criar("404", null, TipoFonte.LogIis, TipoCriterio.CodigoStatus, "404", 30, 60, true, Base,
+            urlsIgnoradas: @"^/api/configuracao/empresa|^/favicon\.ico");
+        Assert.False(avaliador.Corresponde(rotaInteira, Evento("GET", "/api/configuracao/empresa")));
+        Assert.False(avaliador.Corresponde(rotaInteira, Evento("POST", "/api/configuracao/empresa")));
+        Assert.False(avaliador.Corresponde(rotaInteira, Evento("GET", "/favicon.ico")));
+        Assert.True(avaliador.Corresponde(rotaInteira, Evento("GET", "/wp-login.php")));
+    }
+
+    [Fact]
+    public void Regra_ValidaUrlsIgnoradas()
+    {
+        Assert.Null(RegraDeteccao.Validar("r", TipoFonte.LogIis, TipoCriterio.CodigoStatus, "404", 1, 60, "^/api/x"));
+        Assert.NotNull(RegraDeteccao.Validar("r", TipoFonte.LogIis, TipoCriterio.CodigoStatus, "404", 1, 60, "^/api/(x"));
+        Assert.NotNull(RegraDeteccao.Validar("r", TipoFonte.EventoWindows, TipoCriterio.IdEventoWindows, "4625", 1, 60, "^/api/x"));
+    }
+
+    [Fact]
     public void Avaliador_AceitaRegexComLookaroundUsandoMotorTradicional()
     {
         var regra = RegraDeteccao.Criar("lookahead", null, TipoFonte.LogIis, TipoCriterio.PadraoUrl, @"^/admin(?!/publico)", 1, 60, true, Base);

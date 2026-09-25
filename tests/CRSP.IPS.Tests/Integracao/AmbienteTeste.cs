@@ -81,24 +81,44 @@ internal sealed class AmbienteTeste : IAsyncDisposable
 
 internal sealed class FirewallFalso : IServicoFirewall
 {
-    public List<FaixaIp> Bloqueados { get; } = [];
-    public List<FaixaIp> ListasExternas { get; } = [];
+    public Dictionary<ConjuntoRegrasFirewall, List<FaixaIp>> Conjuntos { get; } = [];
     public int Substituicoes { get; private set; }
     public PlanoRestricaoPaises? PlanoPaises { get; private set; }
     public HashSet<string> RegrasDesabilitadas { get; } = [];
     public List<string> RegrasPermissivas { get; } = ["Remote Desktop - User Mode (TCP-In)"];
 
-    private List<FaixaIp> Conjunto(ConjuntoRegrasFirewall conjunto) =>
-        conjunto == ConjuntoRegrasFirewall.ListasExternas ? ListasExternas : Bloqueados;
+    /// <summary>Regras com nomes antigos que o proximo RemoverRegrasObsoletas deve apagar.</summary>
+    public int RegrasObsoletas { get; set; }
 
-    public IReadOnlyList<FaixaIp> LerEnderecos(ConjuntoRegrasFirewall conjunto) => Conjunto(conjunto).ToList();
+    /// <summary>Todos os bloqueios (motor, manuais e lista negra), sem as listas externas.</summary>
+    public IReadOnlyList<FaixaIp> Bloqueados =>
+        Conjuntos.Where(c => c.Key != ConjuntoRegrasFirewall.ListasExternas).SelectMany(c => c.Value).ToList();
+
+    public IReadOnlyList<FaixaIp> ListasExternas => Enderecos(ConjuntoRegrasFirewall.ListasExternas);
+
+    public IReadOnlyList<FaixaIp> Enderecos(ConjuntoRegrasFirewall conjunto) => Conjuntos.GetValueOrDefault(conjunto) ?? [];
+
+    /// <summary>Simula alguem apagando as regras de bloqueio direto no firewall.</summary>
+    public void ApagarBloqueios()
+    {
+        foreach (var conjunto in Conjuntos.Keys.Where(c => c != ConjuntoRegrasFirewall.ListasExternas).ToList())
+            Conjuntos[conjunto].Clear();
+    }
+
+    public IReadOnlyList<FaixaIp> LerEnderecos(ConjuntoRegrasFirewall conjunto) => Enderecos(conjunto).ToList();
 
     public int SubstituirEnderecos(ConjuntoRegrasFirewall conjunto, IReadOnlyList<FaixaIp> enderecos)
     {
         Substituicoes++;
-        Conjunto(conjunto).Clear();
-        Conjunto(conjunto).AddRange(enderecos);
+        Conjuntos[conjunto] = enderecos.ToList();
         return enderecos.Count == 0 ? 0 : 1;
+    }
+
+    public int RemoverRegrasObsoletas()
+    {
+        var removidas = RegrasObsoletas;
+        RegrasObsoletas = 0;
+        return removidas;
     }
 
     public void AplicarRestricaoPaises(PlanoRestricaoPaises plano) => PlanoPaises = plano;

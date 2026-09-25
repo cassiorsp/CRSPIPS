@@ -17,7 +17,7 @@ public sealed class AvaliadorRegras
         if (!regra.Ativa || regra.Fonte != evento.Fonte)
             return false;
 
-        return regra.Criterio switch
+        var casou = regra.Criterio switch
         {
             TipoCriterio.CodigoStatus => evento.CodigoStatus is { } codigo && ContemNumero(regra.Padrao, codigo),
             TipoCriterio.IdEventoWindows => evento.IdEventoWindows is { } id && ContemNumero(regra.Padrao, id),
@@ -25,6 +25,21 @@ public sealed class AvaliadorRegras
             TipoCriterio.MotivoHttpErr => CasaExpressao(regra.Padrao, evento.MotivoHttpErr),
             _ => false
         };
+
+        return casou && !EstaIgnorada(regra, evento);
+    }
+
+    /// <summary>
+    /// Excecao da regra: a expressao vale para a URL ("^/api/x") ou para "METODO URL" ("^POST /api/x"),
+    /// permitindo ignorar uma rota inteira ou so um metodo dela.
+    /// </summary>
+    private bool EstaIgnorada(RegraDeteccao regra, EventoDetectado evento)
+    {
+        if (string.IsNullOrEmpty(regra.UrlsIgnoradas) || string.IsNullOrEmpty(evento.Url))
+            return false;
+
+        return CasaExpressao(regra.UrlsIgnoradas, evento.Url) ||
+               (evento.Metodo is not null && CasaExpressao(regra.UrlsIgnoradas, $"{evento.Metodo} {evento.Url}"));
     }
 
     private static bool ContemNumero(string lista, int valor)

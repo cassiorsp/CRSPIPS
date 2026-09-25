@@ -87,11 +87,53 @@ public class MotorTestes
         await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoSincronizacaoFirewall>().SincronizarAsync());
         Assert.Single(ambiente.Firewall.Bloqueados);
 
-        ambiente.Firewall.Bloqueados.Clear();
+        ambiente.Firewall.ApagarBloqueios();
         ambiente.Relogio.Advance(TimeSpan.FromMinutes(6));
         await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoSincronizacaoFirewall>().SincronizarAsync());
 
         Assert.Equal([Atacante], ambiente.Firewall.Bloqueados.Select(f => f.ParaTextoFirewall()));
+    }
+
+    [Fact]
+    public async Task Sincronizacao_SeparaAsRegrasDoFirewallPelaFonte()
+    {
+        await using var ambiente = await AmbienteTeste.CriarAsync();
+        await DesligarSimulacaoAsync(ambiente);
+        var agora = ambiente.Relogio.GetUtcNow().UtcDateTime;
+
+        await ProcessarAsync(ambiente, Gerar404(Atacante, 30, agora));
+        var rdp = Enumerable.Range(0, 5)
+            .Select(i => new EventoDetectado(EnderecoIp.Converter("203.0.113.8"), TipoFonte.EventoWindows, agora.AddSeconds(i), IdEventoWindows: 4625))
+            .ToList();
+        await ProcessarAsync(ambiente, rdp);
+        await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoBloqueios>().BloquearManualAsync("203.0.113.9", null, "teste"));
+        await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoListas>().AdicionarAsync(TipoLista.Negra, "198.18.0.0/15", "Rede hostil"));
+
+        await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoSincronizacaoFirewall>().SincronizarAsync());
+
+        string[] Textos(ConjuntoRegrasFirewall conjunto) => ambiente.Firewall.Enderecos(conjunto).Select(f => f.ParaTextoFirewall()).ToArray();
+        Assert.Equal([Atacante], Textos(ConjuntoRegrasFirewall.LogIis));
+        Assert.Equal(["203.0.113.8"], Textos(ConjuntoRegrasFirewall.EventoWindows));
+        Assert.Equal(["203.0.113.9"], Textos(ConjuntoRegrasFirewall.Manual));
+        Assert.Equal(["198.18.0.0-198.19.255.255"], Textos(ConjuntoRegrasFirewall.ListaNegra));
+        Assert.Empty(Textos(ConjuntoRegrasFirewall.HttpErr));
+    }
+
+    [Fact]
+    public async Task Sincronizacao_ReaplicaTudoDepoisDeRemoverRegrasComNomesAntigos()
+    {
+        await using var ambiente = await AmbienteTeste.CriarAsync();
+        await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoBloqueios>().BloquearManualAsync(Atacante, null, "teste"));
+        await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoSincronizacaoFirewall>().SincronizarAsync());
+
+        // Versao antiga: as regras com nomes antigos sao apagadas e os conjuntos precisam voltar com os nomes novos.
+        ambiente.Firewall.ApagarBloqueios();
+        ambiente.Firewall.RegrasObsoletas = 2;
+        ambiente.Relogio.Advance(TimeSpan.FromMinutes(6));
+        await ambiente.ExecutarAsync(p => p.GetRequiredService<ServicoSincronizacaoFirewall>().SincronizarAsync());
+
+        Assert.Equal(0, ambiente.Firewall.RegrasObsoletas);
+        Assert.Equal([Atacante], ambiente.Firewall.Enderecos(ConjuntoRegrasFirewall.Manual).Select(f => f.ParaTextoFirewall()));
     }
 
     [Fact]

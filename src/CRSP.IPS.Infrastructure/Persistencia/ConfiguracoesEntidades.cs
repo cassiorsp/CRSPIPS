@@ -37,6 +37,7 @@ internal sealed class ConfiguracaoRegra : IEntityTypeConfiguration<RegraDeteccao
         builder.Property(r => r.Nome).HasMaxLength(100).IsRequired();
         builder.Property(r => r.Descricao).HasMaxLength(500);
         builder.Property(r => r.Padrao).HasMaxLength(1000).IsRequired();
+        builder.Property(r => r.UrlsIgnoradas).HasMaxLength(1000);
         builder.HasIndex(r => r.Nome).IsUnique();
         builder.Ignore(r => r.Janela);
     }

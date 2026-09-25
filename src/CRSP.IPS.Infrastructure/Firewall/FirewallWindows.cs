@@ -17,9 +17,16 @@ namespace CRSP.IPS.Infrastructure.Firewall;
 internal sealed class FirewallWindows(ILogger<FirewallWindows> logger) : IServicoFirewall
 {
     internal const string Grupo = "CRSPIPS";
-    internal const string PrefixoBloqueio = "CRSPIPS_Bloqueio_";
-    internal const string PrefixoListasExternas = "CRSPIPS_ListaExterna_";
-    internal const string PrefixoPaises = "CRSPIPS_Pais_";
+    internal const string PrefixoPaises = "CRSPIPS_PAIS_";
+
+    /// <summary>Numero da regra no nome (CRSPIPS_LOGIIS_00001).</summary>
+    private const string FormatoNumero = "D5";
+
+    /// <summary>
+    /// Prefixos usados ate a versao anterior (maiusculas e minusculas exatas, 3 digitos). Removidos na primeira
+    /// verificacao completa; os conjuntos atuais sao recriados com os nomes novos.
+    /// </summary>
+    private static readonly string[] PrefixosObsoletos = ["CRSPIPS_Bloqueio_", "CRSPIPS_ListaExterna_", "CRSPIPS_Pais_"];
     private const int EnderecosPorRegra = 1000;
 
     private const int DirecaoEntrada = 1;
@@ -32,10 +39,15 @@ internal sealed class FirewallWindows(ILogger<FirewallWindows> logger) : IServic
 
     private readonly Lock _trava = new();
 
-    private static (string Prefixo, string Descricao) Identificar(ConjuntoRegrasFirewall conjunto) => conjunto switch
+    internal static (string Prefixo, string Descricao) Identificar(ConjuntoRegrasFirewall conjunto) => conjunto switch
     {
-        ConjuntoRegrasFirewall.ListasExternas => (PrefixoListasExternas, "Listas externas do CRSPIPS (Spamhaus, DShield...)"),
-        _ => (PrefixoBloqueio, "Bloqueios do CRSPIPS")
+        ConjuntoRegrasFirewall.LogIis => ("CRSPIPS_LOGIIS_", "Bloqueios do CRSPIPS gerados por regras do Log IIS"),
+        ConjuntoRegrasFirewall.HttpErr => ("CRSPIPS_HTTPERR_", "Bloqueios do CRSPIPS gerados por regras do HTTPERR"),
+        ConjuntoRegrasFirewall.EventoWindows => ("CRSPIPS_EVENTOWINDOWS_", "Bloqueios do CRSPIPS gerados por eventos do Windows (RDP, SQL Server)"),
+        ConjuntoRegrasFirewall.Manual => ("CRSPIPS_MANUAL_", "Bloqueios manuais do CRSPIPS"),
+        ConjuntoRegrasFirewall.ListaNegra => ("CRSPIPS_LISTANEGRA_", "Lista negra do CRSPIPS"),
+        ConjuntoRegrasFirewall.ListasExternas => ("CRSPIPS_LISTAEXTERNA_", "Listas externas do CRSPIPS (Spamhaus, DShield...)"),
+        _ => throw new ArgumentOutOfRangeException(nameof(conjunto))
     };
 
     public IReadOnlyList<FaixaIp> LerEnderecos(ConjuntoRegrasFirewall conjunto)
@@ -63,7 +75,7 @@ internal sealed class FirewallWindows(ILogger<FirewallWindows> logger) : IServic
 
             for (var indice = 0; indice < blocos.Count; indice++)
             {
-                var nome = $"{prefixo}{indice + 1:D3}";
+                var nome = prefixo + (indice + 1).ToString(FormatoNumero);
                 var remotos = string.Join(',', blocos[indice].Select(f => f.ParaTextoFirewall()));
 
                 if (existentes.Remove(nome, out dynamic? regraExistente) && regraExistente is not null)
@@ -100,9 +112,9 @@ internal sealed class FirewallWindows(ILogger<FirewallWindows> logger) : IServic
 
             var portas = plano.Portas.Count > 0 ? string.Join(',', plano.Portas) : null;
             var acao = permitir ? AcaoPermitir : AcaoBloquear;
-            var rotulo = permitir ? "Permitir" : "Bloquear";
+            var rotulo = permitir ? "PERMITIR" : "BLOQUEAR";
             (int Protocolo, string Nome)[] protocolos = portas is null
-                ? [(ProtocoloQualquer, "Todos")]
+                ? [(ProtocoloQualquer, "TODOS")]
                 : [(ProtocoloTcp, "TCP"), (ProtocoloUdp, "UDP")];
 
             foreach (var (protocolo, nomeProtocolo) in protocolos)
@@ -111,7 +123,7 @@ internal sealed class FirewallWindows(ILogger<FirewallWindows> logger) : IServic
                 foreach (var bloco in enderecos.Chunk(EnderecosPorRegra))
                 {
                     indice++;
-                    var nome = $"{PrefixoPaises}{rotulo}_{nomeProtocolo}_{indice:D3}";
+                    var nome = $"{PrefixoPaises}{rotulo}_{nomeProtocolo}_" + indice.ToString(FormatoNumero);
                     politica.Rules.Add(CriarRegra(nome, "Política de países do CRSPIPS", acao, protocolo, portas, string.Join(',', bloco)));
                 }
             }
@@ -159,6 +171,28 @@ internal sealed class FirewallWindows(ILogger<FirewallWindows> logger) : IServic
                 if (string.Equals((string?)regra.Name, nome, StringComparison.OrdinalIgnoreCase))
                     regra.Enabled = habilitada;
             }
+        }
+    }
+
+    public int RemoverRegrasObsoletas()
+    {
+        lock (_trava)
+        {
+            var politica = CriarPolitica();
+            var obsoletas = new List<string>();
+            foreach (dynamic regra in politica.Rules)
+            {
+                string? nome = regra.Name;
+                if (nome is not null && PrefixosObsoletos.Any(p => nome.StartsWith(p, StringComparison.Ordinal)))
+                    obsoletas.Add(nome);
+            }
+
+            foreach (var nome in obsoletas)
+                politica.Rules.Remove(nome);
+
+            if (obsoletas.Count > 0)
+                logger.LogInformation("Removidas {Quantidade} regras de firewall com nomes antigos", obsoletas.Count);
+            return obsoletas.Count;
         }
     }
 

@@ -77,6 +77,7 @@ public static class Exibicao
     {
         OrigemBloqueio.Automatico => "Automático",
         OrigemBloqueio.Manual => "Manual",
+        OrigemBloqueio.ListaExterna => "Lista externa",
         _ => "País"
     };
 
@@ -120,6 +121,7 @@ public static class Exibicao
     {
         ModoListaExterna.Desativada => "Desativada",
         ModoListaExterna.Avaliacao => "Avaliação",
+        ModoListaExterna.Reativa => "Reativa",
         _ => "Ativa"
     };
 
@@ -136,6 +138,19 @@ public static class Exibicao
         PeriodoDashboard.Hoje => "Hoje",
         PeriodoDashboard.Tudo => "todo o período",
         _ => "{0} dias"
+    };
+
+    /// <summary>Modos na ordem de rigor (usada nos botoes e no cadastro).</summary>
+    public static IReadOnlyList<ModoListaExterna> ModosListaExterna { get; } =
+        [ModoListaExterna.Desativada, ModoListaExterna.Avaliacao, ModoListaExterna.Reativa, ModoListaExterna.Ativa];
+
+    /// <summary>Explicacao curta de cada modo de lista externa.</summary>
+    public static string Descrever(ModoListaExterna valor) => valor switch
+    {
+        ModoListaExterna.Desativada => "Não é baixada.",
+        ModoListaExterna.Avaliacao => "Baixa e mostra as coincidências com o tráfego. Não bloqueia.",
+        ModoListaExterna.Reativa => "Não vai ao firewall: o IP da lista é bloqueado na primeira tentativa suspeita, sem esperar o limite da regra.",
+        _ => "Todas as faixas vão para o firewall e são bloqueadas antes de chegar."
     };
 
     public static IReadOnlyList<(string Valor, string Texto)> OpcoesDuracao { get; } =

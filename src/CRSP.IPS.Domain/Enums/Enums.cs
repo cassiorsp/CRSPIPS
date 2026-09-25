@@ -11,7 +11,10 @@ public enum OrigemBloqueio
 {
     Automatico = 1,
     Manual = 2,
-    Pais = 3
+    Pais = 3,
+
+    /// <summary>IP de uma lista externa em modo Reativa que gerou um evento suspeito.</summary>
+    ListaExterna = 4
 }
 
 public enum TipoFonte
@@ -62,7 +65,13 @@ public enum ModoListaExterna
     Avaliacao = 1,
 
     /// <summary>Baixa e aplica no firewall (exceto em modo simulacao).</summary>
-    Ativa = 2
+    Ativa = 2,
+
+    /// <summary>
+    /// Baixa, mas nao vai ao firewall: o IP da lista que gerar um evento suspeito (casar com qualquer regra ativa)
+    /// e bloqueado na hora, sem esperar o limite da regra. Ideal para listas grandes de IPs individuais.
+    /// </summary>
+    Reativa = 3
 }
 
 public enum ModoPoliticaPaises

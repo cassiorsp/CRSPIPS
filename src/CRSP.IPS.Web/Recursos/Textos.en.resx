@@ -1287,8 +1287,8 @@
   <data name="IPs com pior reputação na rede de sensores da Sentinel IPS. Coloque em avaliação e confira as coincidências antes de ativar." xml:space="preserve">
     <value>IPs with the worst reputation on the Sentinel IPS sensor network. Put it in evaluation and check the matches before activating.</value>
   </data>
-  <data name="IPs de alguma lista (em avaliação ou ativa) que chegaram ao servidor. Use para avaliar uma lista antes de ativá-la: varreduras e ataques confirmam a lista; acessos normais de operadoras brasileiras ou de parceiros indicam risco de bloquear usuários legítimos." xml:space="preserve">
-    <value>IPs from a list (in evaluation or active) that reached the server. Use this to evaluate a list before activating it: scans and attacks confirm the list; normal visits from Brazilian carriers or partners indicate a risk of blocking legitimate users.</value>
+  <data name="IPs de alguma lista (em avaliação, reativa ou ativa) que chegaram ao servidor. Use para avaliar uma lista antes de ativá-la: varreduras e ataques confirmam a lista; acessos normais de operadoras brasileiras ou de parceiros indicam risco de bloquear usuários legítimos." xml:space="preserve">
+    <value>IPs from a list (in evaluation, reactive or active) that reached the server. Use this to evaluate a list before activating it: scans and attacks confirm the list; normal visits from Brazilian carriers or partners indicate a risk of blocking legitimate users.</value>
   </data>
   <data name="IPs presentes em 3 ou mais listas públicas de ataque. Coloque em avaliação e confira as coincidências antes de ativar." xml:space="preserve">
     <value>IPs present in 3 or more public attack lists. Put it in evaluation and check the matches before activating.</value>
@@ -1494,8 +1494,8 @@
   <data name="Texto (um IP ou faixa por linha)" xml:space="preserve">
     <value>Text (one IP or range per line)</value>
   </data>
-  <data name="Texto: um IP, CIDR ou intervalo por linha (linhas com # ou ; são comentários). Comece em Avaliação e confira as coincidências antes de ativar: a lista passa pela mesma proteção (lista branca, servidor e administradores)." xml:space="preserve">
-    <value>Text: one IP, CIDR or range per line (lines starting with # or ; are comments). Start in Evaluation and check the matches before activating: the list goes through the same protection (whitelist, server and administrators).</value>
+  <data name="Texto: um IP, CIDR ou intervalo por linha (linhas com # ou ; são comentários). Comece em Avaliação e confira as coincidências antes de usar Reativa ou Ativa: a lista passa pela mesma proteção (lista branca, servidor e administradores)." xml:space="preserve">
+    <value>Text: one IP, CIDR or range per line (lines starting with # or ; are comments). Start in Evaluation and check the matches before using Reactive or Active: the list goes through the same protection (whitelist, server and administrators).</value>
   </data>
   <data name="todo o período" xml:space="preserve">
     <value>the whole period</value>
@@ -1544,5 +1544,50 @@
   </data>
   <data name="Lista externa excluída" xml:space="preserve">
     <value>External list deleted</value>
+  </data>
+  <data name="URLs ignoradas (regex, opcional)" xml:space="preserve">
+    <value>Ignored URLs (regex, optional)</value>
+  </data>
+  <data name="Requisições que casam com esta expressão não contam para a regra. Ela é testada contra a URL (ex.: ^/api/configuracao/empresa, qualquer método) e contra &quot;MÉTODO URL&quot; (ex.: ^POST /api/configuracao/empresa, só o POST). Várias rotas: separe com | (ex.: ^/favicon\.ico|^/img/)." xml:space="preserve">
+    <value>Requests matching this expression do not count for the rule. It is tested against the URL (e.g. ^/api/configuracao/empresa, any method) and against "METHOD URL" (e.g. ^POST /api/configuracao/empresa, POST only). Several routes: separate with | (e.g. ^/favicon\.ico|^/img/).</value>
+  </data>
+  <data name="Ignora:" xml:space="preserve">
+    <value>Ignores:</value>
+  </data>
+  <data name="URLs ignoradas só se aplicam a regras de Log IIS e HTTPERR." xml:space="preserve">
+    <value>Ignored URLs only apply to IIS log and HTTPERR rules.</value>
+  </data>
+  <data name="URLs ignoradas: use no máximo 1000 caracteres." xml:space="preserve">
+    <value>Ignored URLs: use at most 1000 characters.</value>
+  </data>
+  <data name="URLs ignoradas: expressão regular inválida." xml:space="preserve">
+    <value>Ignored URLs: invalid regular expression.</value>
+  </data>
+  <data name="Reativa" xml:space="preserve">
+    <value>Reactive</value>
+  </data>
+  <data name="Lista externa" xml:space="preserve">
+    <value>External list</value>
+  </data>
+  <data name="Reativa: bloqueia na 1ª tentativa" xml:space="preserve">
+    <value>Reactive: blocks on the 1st attempt</value>
+  </data>
+  <data name="Não é baixada." xml:space="preserve">
+    <value>Not downloaded.</value>
+  </data>
+  <data name="Baixa e mostra as coincidências com o tráfego. Não bloqueia." xml:space="preserve">
+    <value>Downloads and shows the matches with the traffic. Does not block.</value>
+  </data>
+  <data name="Não vai ao firewall: o IP da lista é bloqueado na primeira tentativa suspeita, sem esperar o limite da regra." xml:space="preserve">
+    <value>Not sent to the firewall: an IP from the list is blocked on its first suspicious attempt, without waiting for the rule limit.</value>
+  </data>
+  <data name="Todas as faixas vão para o firewall e são bloqueadas antes de chegar." xml:space="preserve">
+    <value>All ranges go to the firewall and are blocked before reaching the server.</value>
+  </data>
+  <data name="Bloqueado pela lista (reativa)" xml:space="preserve">
+    <value>Blocked by the list (reactive)</value>
+  </data>
+  <data name="Aguardando tentativa suspeita" xml:space="preserve">
+    <value>Waiting for a suspicious attempt</value>
   </data>
 </root>

@@ -16,7 +16,7 @@ public sealed class ServicoRegras(
 
     public async Task<Resultado> SalvarAsync(int? id, DadosRegra dados, CancellationToken ct = default)
     {
-        var erro = RegraDeteccao.Validar(dados.Nome, dados.Fonte, dados.Criterio, dados.Padrao, dados.LimiteOcorrencias, dados.JanelaSegundos);
+        var erro = RegraDeteccao.Validar(dados.Nome, dados.Fonte, dados.Criterio, dados.Padrao, dados.LimiteOcorrencias, dados.JanelaSegundos, dados.UrlsIgnoradas);
         if (erro is not null)
             return Resultado.Falha(erro);
 
@@ -24,8 +24,8 @@ public sealed class ServicoRegras(
         if (id is null)
         {
             regras.Adicionar(RegraDeteccao.Criar(dados.Nome, dados.Descricao, dados.Fonte, dados.Criterio, dados.Padrao,
-                dados.LimiteOcorrencias, dados.JanelaSegundos, dados.Ativa, agora));
-            auditoria.Registrar("Regra criada", dados.Nome);
+                dados.LimiteOcorrencias, dados.JanelaSegundos, dados.Ativa, agora, dados.UrlsIgnoradas));
+            auditoria.Registrar("Regra criada", dados.Nome, DescreverExcecao(dados.UrlsIgnoradas));
         }
         else
         {
@@ -33,8 +33,8 @@ public sealed class ServicoRegras(
             if (regra is null)
                 return Resultado.Falha("Regra não encontrada.");
             regra.Alterar(dados.Nome, dados.Descricao, dados.Fonte, dados.Criterio, dados.Padrao,
-                dados.LimiteOcorrencias, dados.JanelaSegundos, dados.Ativa, agora);
-            auditoria.Registrar("Regra alterada", dados.Nome);
+                dados.LimiteOcorrencias, dados.JanelaSegundos, dados.Ativa, agora, dados.UrlsIgnoradas);
+            auditoria.Registrar("Regra alterada", dados.Nome, DescreverExcecao(dados.UrlsIgnoradas));
         }
 
         await unidadeDeTrabalho.SalvarAsync(ct);
@@ -66,4 +66,7 @@ public sealed class ServicoRegras(
         await unidadeDeTrabalho.SalvarAsync(ct);
         return Resultado.Ok();
     }
+
+    private static string? DescreverExcecao(string? urlsIgnoradas) =>
+        string.IsNullOrWhiteSpace(urlsIgnoradas) ? null : $"URLs ignoradas: {urlsIgnoradas.Trim()}";
 }

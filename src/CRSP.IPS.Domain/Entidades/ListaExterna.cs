@@ -59,7 +59,7 @@ public class ListaExterna
 
     public IReadOnlyList<string> ObterUrls() => Urls.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    /// <summary>Baixada periodicamente (modos Avaliacao e Ativa).</summary>
+    /// <summary>Baixada periodicamente (modos Avaliacao, Reativa e Ativa).</summary>
     public bool EstaEmUso => Modo != ModoListaExterna.Desativada;
 
     public DateTime? ProximaAtualizacaoEm => EstaEmUso ? (UltimaVerificacaoEm?.AddHours(IntervaloHoras) ?? DateTime.MinValue) : null;
