@@ -151,6 +151,8 @@ public sealed class ServicoSincronizacaoFirewall(
         }
 
         Aplicar(ConjuntoRegrasFirewall.ListasExternas, desejado, MontarChave(desejado), verificacaoCompleta);
+        (await statusWorker.ObterAsync(ct))?.RegistrarListasExternas(
+            (desejado.Count + EnderecosPorRegra - 1) / EnderecosPorRegra, desejado.Count);
         estado.UltimaVersaoListasExternas = versao;
     }
 

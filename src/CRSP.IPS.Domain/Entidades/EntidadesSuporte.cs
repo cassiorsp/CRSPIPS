@@ -57,8 +57,13 @@ public class StatusWorker
     public DateTime IniciadoEm { get; private set; }
     public DateTime UltimoSinalEm { get; private set; }
     public DateTime? UltimaSincronizacaoEm { get; private set; }
+    /// <summary>Bloqueios (motor, manuais e lista negra): regras CRSPIPS_LOGIIS/HTTPERR/EVENTOWINDOWS/MANUAL/LISTANEGRA.</summary>
     public int RegrasNoFirewall { get; private set; }
     public int EnderecosNoFirewall { get; private set; }
+
+    /// <summary>Listas externas em modo Ativa: regras CRSPIPS_LISTAEXTERNA.</summary>
+    public int RegrasListasExternas { get; private set; }
+    public int EnderecosListasExternas { get; private set; }
     public long EventosProcessados { get; private set; }
     public string? UltimoErro { get; private set; }
     public DateTime? UltimoErroEm { get; private set; }
@@ -91,6 +96,12 @@ public class StatusWorker
         UltimaSincronizacaoEm = agoraUtc;
         RegrasNoFirewall = regras;
         EnderecosNoFirewall = enderecos;
+    }
+
+    public void RegistrarListasExternas(int regras, int enderecos)
+    {
+        RegrasListasExternas = regras;
+        EnderecosListasExternas = enderecos;
     }
 
     public void RegistrarPoliticaPaises(string? resumo) => ResumoPoliticaPaises = resumo;

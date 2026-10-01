@@ -1590,4 +1590,10 @@
   <data name="Aguardando tentativa suspeita" xml:space="preserve">
     <value>Waiting for a suspicious attempt</value>
   </data>
+  <data name="Bloqueios: {0} em {1} regra(s)" xml:space="preserve">
+    <value>Blocks: {0} in {1} rule(s)</value>
+  </data>
+  <data name="Listas externas: {0} em {1} regra(s)" xml:space="preserve">
+    <value>External lists: {0} in {1} rule(s)</value>
+  </data>
 </root>

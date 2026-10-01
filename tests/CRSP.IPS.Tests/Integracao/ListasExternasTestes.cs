@@ -51,6 +51,11 @@ public class ListasExternasTestes
         ambiente.BaixadorListas.Conteudos[UrlSpamhausV4] = SpamhausV4;
         ambiente.BaixadorListas.Conteudos[UrlSpamhausV6] = SpamhausV6;
         ambiente.BaixadorListas.Conteudos[UrlDShield] = DShield;
+        await ambiente.ExecutarAsync(async p =>
+        {
+            p.GetRequiredService<IRepositorioStatusWorker>().Adicionar(Domain.Entidades.StatusWorker.Iniciar("teste", "1.0", DateTime.UtcNow));
+            await p.GetRequiredService<IUnidadeDeTrabalho>().SalvarAsync();
+        });
 
         await AtualizarAsync(ambiente);
         var spamhaus = await ObterListaAsync(ambiente, "Spamhaus DROP");
@@ -72,6 +77,12 @@ public class ListasExternasTestes
         Assert.Equal(1, (await ObterListaAsync(ambiente, "DShield Top 20")).Removidas);
         Assert.DoesNotContain(aplicadas, f => f.StartsWith("10."));
         Assert.Empty(ambiente.Firewall.Bloqueados);
+
+        // O dashboard mostra bloqueios e listas externas separados ("Endereços no firewall").
+        var status = await ambiente.ExecutarAsync(p => p.GetRequiredService<IRepositorioStatusWorker>().ObterAsync());
+        Assert.Equal(aplicadas.Count, status!.EnderecosListasExternas);
+        Assert.Equal(1, status.RegrasListasExternas);
+        Assert.Equal(0, status.EnderecosNoFirewall);
     }
 
     [Fact]
