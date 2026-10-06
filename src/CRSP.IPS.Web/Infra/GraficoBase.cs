@@ -35,6 +35,12 @@ public abstract class GraficoBase : ComponentBase, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        GC.SuppressFinalize(this);
+
+        // Na pre-renderizacao nada foi desenhado e o JavaScript nem esta disponivel (a chamada lancaria excecao).
+        if (_dadosDesenhados is null)
+            return;
+
         try
         {
             await JS.InvokeVoidAsync("crspips.graficos.destruir", Canvas);
@@ -43,6 +49,5 @@ public abstract class GraficoBase : ComponentBase, IAsyncDisposable
         {
             // Circuito ja encerrado (aba fechada): o grafico some junto com a pagina.
         }
-        GC.SuppressFinalize(this);
     }
 }

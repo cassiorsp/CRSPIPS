@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using CRSP.IPS.Application.Modelos;
 using Microsoft.Extensions.Logging;
 
 namespace CRSP.IPS.Infrastructure.Fontes;
@@ -16,6 +17,7 @@ internal sealed class ResolvedorSitesIis(ILogger<ResolvedorSitesIis> logger, str
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "inetsrv", "config", "applicationHost.config");
     private readonly Lock _trava = new();
     private IReadOnlyDictionary<string, string> _sites = new Dictionary<string, string>();
+    private IReadOnlyList<SitePool> _sitesComPool = [];
     private DateTime _versao = DateTime.MinValue;
     private DateTime _ultimaVerificacao = DateTime.MinValue;
 
@@ -23,6 +25,21 @@ internal sealed class ResolvedorSitesIis(ILogger<ResolvedorSitesIis> logger, str
     {
         Recarregar();
         return _sites.GetValueOrDefault(idSite);
+    }
+
+    /// <summary>Sites configurados no IIS e o application pool da aplicacao raiz de cada um.</summary>
+    public IReadOnlyList<SitePool> ListarSitesComPool()
+    {
+        Recarregar();
+        return _sitesComPool;
+    }
+
+    private static string PoolDoSite(XElement site, string poolPadrao)
+    {
+        var raiz = site.Elements("application").FirstOrDefault(a => (string?)a.Attribute("path") == "/");
+        return (string?)raiz?.Attribute("applicationPool")
+            ?? (string?)site.Element("applicationDefaults")?.Attribute("applicationPool")
+            ?? poolPadrao;
     }
 
     private void Recarregar()
@@ -45,9 +62,17 @@ internal sealed class ResolvedorSitesIis(ILogger<ResolvedorSitesIis> logger, str
                     return;
 
                 using var fluxo = new FileStream(_caminho, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                _sites = XDocument.Load(fluxo)
-                    .Descendants("site")
-                    .Where(s => s.Parent?.Name.LocalName == "sites")
+                var documento = XDocument.Load(fluxo);
+                var elementosSites = documento.Descendants("site").Where(s => s.Parent?.Name.LocalName == "sites").ToList();
+                var poolPadrao = (string?)documento.Descendants("applicationDefaults")
+                    .FirstOrDefault(d => d.Parent?.Name.LocalName == "sites")?.Attribute("applicationPool") ?? "DefaultAppPool";
+                _sitesComPool = elementosSites
+                    .Select(s => (Nome: (string?)s.Attribute("name"), Pool: PoolDoSite(s, poolPadrao)))
+                    .Where(s => !string.IsNullOrEmpty(s.Nome))
+                    .Select(s => new SitePool(s.Nome!, s.Pool))
+                    .ToList();
+
+                _sites = elementosSites
                     .Select(s => (Id: (string?)s.Attribute("id"), Nome: (string?)s.Attribute("name")))
                     .Where(s => !string.IsNullOrEmpty(s.Id) && !string.IsNullOrEmpty(s.Nome))
                     .GroupBy(s => s.Id!)

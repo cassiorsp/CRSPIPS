@@ -87,6 +87,14 @@
                     <InputNumber id="retencao" class="form-control" min="1" max="365" @bind-Value="_motor.RetencaoEventosDias" />
                     <div class="form-text">@T["Amostras de eventos mais antigas são apagadas. O histórico de bloqueios é mantido."]</div>
                     <MensagemValidacao Para="() => _motor.RetencaoEventosDias" />
+                    <label class="form-label mt-3" for="retencaoEndpoints">@T["Retenção das métricas de endpoints (dias)"]</label>
+                    <InputNumber id="retencaoEndpoints" class="form-control" min="1" max="365" @bind-Value="_motor.RetencaoMetricasEndpointsDias" />
+                    <div class="form-text">@T["Requisições agregadas por hora, mostradas na tela Endpoints."]</div>
+                    <MensagemValidacao Para="() => _motor.RetencaoMetricasEndpointsDias" />
+                    <label class="form-label mt-3" for="retencaoProcessos">@T["Retenção das métricas do IIS (dias)"]</label>
+                    <InputNumber id="retencaoProcessos" class="form-control" min="1" max="365" @bind-Value="_motor.RetencaoMetricasProcessosDias" />
+                    <div class="form-text">@T["Memória e CPU dos application pools, mostradas na tela IIS."]</div>
+                    <MensagemValidacao Para="() => _motor.RetencaoMetricasProcessosDias" />
                 </div>
             </div>
 
@@ -266,7 +274,9 @@
             MonitorarHttpErr = configuracao.MonitorarHttpErr,
             CaminhoHttpErr = configuracao.CaminhoHttpErr,
             MonitorarEventosWindows = configuracao.MonitorarEventosWindows,
-            RetencaoEventosDias = configuracao.RetencaoEventosDias
+            RetencaoEventosDias = configuracao.RetencaoEventosDias,
+            RetencaoMetricasEndpointsDias = configuracao.RetencaoMetricasEndpointsDias,
+            RetencaoMetricasProcessosDias = configuracao.RetencaoMetricasProcessosDias
         };
         _contextoMotor = new EditContext(_motor);
         _contextoMotor.OnFieldChanged += (_, _) => _alterado = true;
@@ -291,7 +301,8 @@
             var resultado = await Servicos.ExecutarAsync((ServicoConfiguracao s) => s.SalvarMotorAsync(new DadosConfiguracaoMotor(
                 _motor.ModoSimulacao, _motor.TemposBloqueio, _motor.JanelaReincidenciaDias,
                 _motor.MonitorarLogIis, _motor.CaminhoLogIis, _motor.MonitorarHttpErr, _motor.CaminhoHttpErr,
-                _motor.MonitorarEventosWindows, _motor.RetencaoEventosDias)));
+                _motor.MonitorarEventosWindows, _motor.RetencaoEventosDias,
+                _motor.RetencaoMetricasEndpointsDias, _motor.RetencaoMetricasProcessosDias)));
 
             _erroMotor = resultado.Sucesso ? null : resultado.Erro;
             if (Avisos.Mostrar(resultado, "Configurações salvas. O motor passa a usar os novos valores no próximo ciclo."))
@@ -373,5 +384,11 @@
 
         [Range(1, 365, ErrorMessage = "Valor fora do intervalo permitido.")]
         public int RetencaoEventosDias { get; set; }
+
+        [Range(1, 365, ErrorMessage = "Valor fora do intervalo permitido.")]
+        public int RetencaoMetricasEndpointsDias { get; set; }
+
+        [Range(1, 365, ErrorMessage = "Valor fora do intervalo permitido.")]
+        public int RetencaoMetricasProcessosDias { get; set; }
     }
 }

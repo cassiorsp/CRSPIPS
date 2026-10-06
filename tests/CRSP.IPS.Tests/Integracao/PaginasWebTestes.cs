@@ -34,6 +34,10 @@ public class PaginasWebTestes : IClassFixture<PaginasWebTestes.FabricaPainel>
         { "/Bloqueios/Detalhe?ip=203.0.113.7", "Histórico de bloqueios" },
         { "/Monitor", "Eventos suspeitos em tempo real" },
         { "/Monitor?x=1", "203.0.113.7" },
+        { "/Endpoints", "Erros do servidor (5xx)" },
+        { "/Endpoints?periodo=30d&site=teste", "Filtrar endpoint" },
+        { "/Iis", "Application pool" },
+        { "/Iis?periodo=7d&pool=x", "Application pool" },
         { "/?periodo=7d", "Ataques mitigados" },
         { "/?periodo=tudo", "IPs agressores mais frequentes" },
         { "/Regras", "Excesso de 404" },
@@ -67,6 +71,8 @@ public class PaginasWebTestes : IClassFixture<PaginasWebTestes.FabricaPainel>
     [Theory]
     [InlineData("/", "Active blocks")]
     [InlineData("/Bloqueios", "Block IP")]
+    [InlineData("/Endpoints", "Server errors (5xx)")]
+    [InlineData("/Iis", "Application pool")]
     [InlineData("/Paises", "Country policy")]
     [InlineData("/Configuracoes", "Simulation mode")]
     public async Task PaginaRenderizaEmIngles(string url, string textoEsperado)
@@ -111,6 +117,80 @@ public class PaginasWebTestes : IClassFixture<PaginasWebTestes.FabricaPainel>
         Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
         Assert.Equal("text/csv", resposta.Content.Headers.ContentType?.MediaType);
         Assert.StartsWith("faixa;descricao", (await resposta.Content.ReadAsStringAsync()).TrimStart('﻿'));
+    }
+
+    [Theory]
+    [InlineData("/Bloqueios/exportar.csv", "IP;País;Cidade", "198.51.100.77;")]
+    [InlineData("/Bloqueios/exportar.csv?Status=Ativo&Busca=198.51.100.77", "IP;País;Cidade", "Varredura observada")]
+    [InlineData("/Endpoints/exportar.csv?periodo=30d&ordem=5xx", "Site;Método;Endpoint;Total;Sem erro;4xx;5xx", null)]
+    [InlineData("/Iis/sites.csv?periodo=7d&ordem=memmax&crescente=true", "Site;Application pool;Acessos", null)]
+    public async Task TabelasSaoExportadasEmCsv(string url, string cabecalho, string? conteudo)
+    {
+        var resposta = await _fabrica.CriarCliente("pt-BR").GetAsync(url);
+        var csv = (await resposta.Content.ReadAsStringAsync()).TrimStart('﻿');
+
+        Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
+        Assert.Equal("text/csv", resposta.Content.Headers.ContentType?.MediaType);
+        Assert.EndsWith(".csv", resposta.Content.Headers.ContentDisposition?.FileNameStar ?? resposta.Content.Headers.ContentDisposition?.FileName?.Trim('"'));
+        Assert.StartsWith(cabecalho, csv);
+        if (conteudo is not null)
+            Assert.Contains(conteudo, csv);
+    }
+
+    [Fact]
+    public async Task ExportacaoDeBloqueiosRespeitaOsFiltros()
+    {
+        var resposta = await _fabrica.CriarCliente("pt-BR").GetAsync("/Bloqueios/exportar.csv?Busca=192.0.2.1");
+        var linhas = (await resposta.Content.ReadAsStringAsync()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.Single(linhas);
+    }
+
+    [Fact]
+    public async Task ExportacaoCsvExigeAutenticacao()
+    {
+        var cliente = _fabrica.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var resposta = await cliente.GetAsync("/Bloqueios/exportar.csv");
+
+        Assert.Equal(HttpStatusCode.Redirect, resposta.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("203.0.113.8", true)]
+    [InlineData("203.0.113.", true)]
+    [InlineData("192.0.2.", false)]
+    public async Task MonitorFiltraEventosPorIp(string ip, bool haEventos)
+    {
+        _fabrica.CriarCliente("pt-BR");
+        using var escopo = _fabrica.Services.CreateScope();
+        var servico = escopo.ServiceProvider.GetRequiredService<ServicoPainel>();
+
+        var todos = await servico.ListarEventosRecentesAsync(new FiltroEventos(), null);
+        var eventos = await servico.ListarEventosRecentesAsync(new FiltroEventos(Ip: ip), null);
+
+        Assert.Equal(haEventos, eventos.Count > 0);
+        Assert.Equal(todos.Count(e => e.Ip.StartsWith(ip)), eventos.Count);
+        Assert.All(eventos, e => Assert.StartsWith(ip, e.Ip));
+    }
+
+    [Fact]
+    public void TabelasDeMetricasOrdenamPelaColunaEscolhida()
+    {
+        LinhaRequisicoes Linha(string endpoint, int total, int erro5xx, long tempo) => new("site", "GET", endpoint, total, total - erro5xx, 0, 0, erro5xx, tempo, 0);
+        LinhaRequisicoes[] linhas = [Linha("/a", 10, 1, 1000), Linha("/b", 5, 4, 100), Linha("/c", 20, 0, 60000)];
+
+        Assert.Equal(["/c", "/a", "/b"], Web.Infra.OrdenacaoMetricas.Ordenar(linhas, "total", true).Select(l => l.Endpoint));
+        Assert.Equal(["/b", "/a", "/c"], Web.Infra.OrdenacaoMetricas.Ordenar(linhas, "erro", true).Select(l => l.Endpoint));
+        Assert.Equal(["/b", "/a", "/c"], Web.Infra.OrdenacaoMetricas.Ordenar(linhas, "media", false).Select(l => l.Endpoint));
+
+        var consumo = new ResumoPool("Pool", 1, 300, 2, 1, 1, 1, DateTime.UtcNow);
+        var totais = new TotaisRequisicoes(0, 0, 0, 0, 0, 0, 0);
+        ResumoSiteIis[] sites = [new("sem-pool", null, totais, null), new("grande", "Pool", totais, consumo), new("pequeno", "Outro", totais, consumo with { MemoriaMaxima = 100 })];
+
+        // Site sem amostra do pool fica no fim nas duas direcoes.
+        Assert.Equal(["grande", "pequeno", "sem-pool"], Web.Infra.OrdenacaoMetricas.Ordenar(sites, "memmax", true).Select(s => s.Site));
+        Assert.Equal(["pequeno", "grande", "sem-pool"], Web.Infra.OrdenacaoMetricas.Ordenar(sites, "memmax", false).Select(s => s.Site));
     }
 
     [Fact]

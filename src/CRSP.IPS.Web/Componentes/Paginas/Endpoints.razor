@@ -1,0 +1,304 @@
+@page "/Endpoints"
+@implements IDisposable
+
+<Titulo Texto="@T["Endpoints"]" />
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="btn-group btn-group-sm filtro-periodo" role="group" aria-label="@T["Período"]">
+        @foreach (var opcao in Periodos)
+        {
+            <a class="btn @(opcao == _periodo ? "btn-primary" : "btn-outline-primary")" href="@Url(opcao, _site)">@T[Exibicao.Rotulo(opcao)]</a>
+        }
+    </div>
+    @if (_painel is { Sites.Count: > 0 } com)
+    {
+        <select class="form-select form-select-sm w-auto" aria-label="@T["Site"]" value="@_site" @onchange="e => Navegacao.NavigateTo(Url(_periodo, (string?)e.Value))">
+            <option value="">@T["Todos os sites"]</option>
+            @foreach (var site in com.Sites)
+            {
+                <option value="@site">@site</option>
+            }
+        </select>
+    }
+    <div class="ms-auto d-flex align-items-center gap-2 small text-body-secondary">
+        <span class="ponto-vivo @(_pausado ? "pausado" : "")"></span>
+        <span>@TextoAtualizacao</span>
+        <button class="btn btn-sm btn-link p-0 text-decoration-none" type="button" @onclick="() => _pausado = !_pausado">
+            <i class="bi @(_pausado ? "bi-play" : "bi-pause")"></i> @(_pausado ? T["Continuar"] : T["Pausar"])
+        </button>
+        <button class="btn btn-sm btn-link p-0 text-decoration-none" type="button" title="@T["Atualizar agora"]" @onclick="CarregarAsync">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+</div>
+
+@if (_painel is { } painel)
+{
+    var totais = painel.Totais;
+
+    @if (!painel.HaDados)
+    {
+        <div class="alert alert-info d-flex align-items-center gap-2">
+            <i class="bi bi-info-circle fs-5"></i>
+            <div>
+                @T["Ainda não há requisições registradas no período."]
+                @T["O Worker lê o log do IIS a cada 5 segundos e conta as requisições a partir do momento em que foi iniciado."]
+                @if (!painel.WorkerOnline)
+                {
+                    <strong class="ms-1">@T["O Worker está offline."]</strong>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-xl">
+            <div class="card cartao kpi kpi-info">
+                <div class="card-body">
+                    <div class="kpi-icone"><i class="bi bi-arrow-left-right"></i></div>
+                    <div class="kpi-valor">@totais.Total.ToString("N0")</div>
+                    <div class="kpi-rotulo">@T["Requisições"] <span class="kpi-periodo">(@_textoPeriodo)</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-xl">
+            <div class="card cartao kpi kpi-sucesso">
+                <div class="card-body">
+                    <div class="kpi-icone"><i class="bi bi-check-circle"></i></div>
+                    <div class="kpi-valor">@((totais.Sucesso + totais.Redirecionamento).ToString("N0"))</div>
+                    <div class="kpi-rotulo" title="@T["Respostas 1xx, 2xx e 3xx."]">@T["Sem erro"] <span class="kpi-periodo">(@totais.PercentualSucesso.ToString("N1")%)</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-xl">
+            <div class="card cartao kpi kpi-alerta">
+                <div class="card-body">
+                    <div class="kpi-icone"><i class="bi bi-person-x"></i></div>
+                    <div class="kpi-valor">@totais.ErroCliente.ToString("N0")</div>
+                    <div class="kpi-rotulo" title="@T["Respostas 4xx: pedido inválido, não autorizado ou não encontrado."]">@T["Erros do cliente (4xx)"]</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-xl">
+            <div class="card cartao kpi kpi-perigo">
+                <div class="card-body">
+                    <div class="kpi-icone"><i class="bi bi-exclamation-octagon"></i></div>
+                    <div class="kpi-valor">@totais.ErroServidor.ToString("N0")</div>
+                    <div class="kpi-rotulo" title="@T["Respostas 5xx: falha na aplicação."]">@T["Erros do servidor (5xx)"] <span class="kpi-periodo">(@totais.PercentualErro.ToString("N2")%)</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl">
+            <div class="card cartao kpi kpi-neutro">
+                <div class="card-body">
+                    <div class="kpi-icone"><i class="bi bi-stopwatch"></i></div>
+                    <div class="kpi-valor">@totais.TempoMedioMs.ToString("N0") <small class="fs-6">ms</small></div>
+                    <div class="kpi-rotulo">@T["Tempo médio"] <span class="kpi-periodo">(@T["máx. {0} ms", totais.TempoMaximoMs.ToString("N0")])</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card cartao mb-3">
+        <div class="card-header">@T["Requisições"] <span class="text-body-secondary small">(@_textoPeriodo@(painel.Site is null ? "" : " · " + painel.Site))</span></div>
+        <div class="card-body">
+            <GraficoRequisicoes Rotulos="_grafico.Rotulos"
+                                Sucesso="_grafico.Sucesso"
+                                ErroCliente="_grafico.ErroCliente"
+                                ErroServidor="_grafico.ErroServidor"
+                                RotuloSucesso="@T["Sem erro"]"
+                                RotuloErroCliente="@T["Erros do cliente (4xx)"]"
+                                RotuloErroServidor="@T["Erros do servidor (5xx)"]" />
+        </div>
+    </div>
+
+    <div class="card cartao">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+            <span>@T["Endpoints"] <span class="text-body-secondary small">(@_textoPeriodo) · @T["{0} endpoints", _linhas.Count.ToString("N0")]</span></span>
+            <div class="ms-auto d-flex flex-wrap gap-2 align-items-center">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="somenteErros" checked="@_somenteErros" @onchange="e => { _somenteErros = (bool)e.Value!; Filtrar(); }" />
+                    <label class="form-check-label small" for="somenteErros">@T["Somente com erro"]</label>
+                </div>
+                <input class="form-control form-control-sm w-auto" type="search" placeholder="@T["Filtrar endpoint"]" aria-label="@T["Filtrar endpoint"]"
+                       value="@_busca" @oninput="e => { _busca = e.Value?.ToString(); Filtrar(); }" />
+                <a class="btn btn-sm btn-outline-secondary text-nowrap" href="@UrlCsv" download title="@T["Exporta todas as linhas do filtro atual, na ordem da tabela."]">
+                    <i class="bi bi-filetype-csv"></i> @T["Exportar CSV"]
+                </a>
+            </div>
+        </div>
+        <div class="table-responsive tabela-rolagem">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                <tr>
+                    <th>@T["Site"]</th>
+                    <th>@T["Método"]</th>
+                    <th>@T["Endpoint"]</th>
+                    <CabecalhoOrdenavel Coluna="total" Texto="@T["Total"]" Classe="text-end" Ordem="@_ordem" Decrescente="_decrescente" AoOrdenar="Ordenar" />
+                    <CabecalhoOrdenavel Coluna="semerro" Texto="@T["Sem erro"]" Classe="text-end" Ordem="@_ordem" Decrescente="_decrescente" AoOrdenar="Ordenar" />
+                    <CabecalhoOrdenavel Coluna="4xx" Texto="4xx" Classe="text-end" Ordem="@_ordem" Decrescente="_decrescente" AoOrdenar="Ordenar" />
+                    <CabecalhoOrdenavel Coluna="5xx" Texto="5xx" Classe="text-end" Ordem="@_ordem" Decrescente="_decrescente" AoOrdenar="Ordenar" />
+                    <CabecalhoOrdenavel Coluna="erro" Texto="@T["% erro"]" Classe="text-end" Ordem="@_ordem" Decrescente="_decrescente" AoOrdenar="Ordenar" />
+                    <CabecalhoOrdenavel Coluna="media" Texto="@T["Tempo médio"]" Classe="text-end" Ordem="@_ordem" Decrescente="_decrescente" AoOrdenar="Ordenar" />
+                    <CabecalhoOrdenavel Coluna="max" Texto="@T["Tempo máx."]" Classe="text-end" Ordem="@_ordem" Decrescente="_decrescente" AoOrdenar="Ordenar" />
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var linha in _linhasVisiveis)
+                {
+                    <tr>
+                        <td class="small text-nowrap">@linha.Site</td>
+                        <td><span class="badge text-bg-secondary">@linha.Metodo</span></td>
+                        <td class="fonte-mono text-break">@linha.Endpoint</td>
+                        <td class="text-end">@linha.Total.ToString("N0")</td>
+                        <td class="text-end">@((linha.Sucesso + linha.Redirecionamento).ToString("N0"))</td>
+                        <td class="text-end @(linha.ErroCliente > 0 ? "text-warning" : "text-body-secondary")">@linha.ErroCliente.ToString("N0")</td>
+                        <td class="text-end @(linha.ErroServidor > 0 ? "text-danger fw-semibold" : "text-body-secondary")">@linha.ErroServidor.ToString("N0")</td>
+                        <td class="text-end">@linha.PercentualErro.ToString("N1")%</td>
+                        <td class="text-end">@linha.TempoMedioMs.ToString("N0") ms</td>
+                        <td class="text-end">@linha.TempoMaximoMs.ToString("N0") ms</td>
+                    </tr>
+                }
+                @if (_linhas.Count == 0)
+                {
+                    <tr><td colspan="10" class="text-body-secondary">@T["Nenhum endpoint no período."]</td></tr>
+                }
+                else if (_linhas.Count > _linhasVisiveis.Count)
+                {
+                    <tr><td colspan="10" class="text-body-secondary small">@T["Mostrando os {0} primeiros. Use o filtro para refinar.", _linhasVisiveis.Count]</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private static readonly PeriodoDashboard[] Periodos = [PeriodoDashboard.Hoje, PeriodoDashboard.Dias7, PeriodoDashboard.Dias30, PeriodoDashboard.Dias90];
+    private static readonly TimeSpan IntervaloAtualizacao = TimeSpan.FromSeconds(30);
+    private const int MaximoLinhas = 500;
+
+    [SupplyParameterFromQuery(Name = "periodo")]
+    private string? PeriodoTexto { get; set; }
+
+    [SupplyParameterFromQuery(Name = "site")]
+    private string? SiteParametro { get; set; }
+
+    private PeriodoDashboard _periodo = PeriodoDashboard.Hoje;
+    private string? _site;
+    private PainelEndpoints? _painel;
+    private DadosGrafico _grafico = new([], [], [], []);
+    private IReadOnlyList<LinhaRequisicoes> _linhas = [];
+    private IReadOnlyList<LinhaRequisicoes> _linhasVisiveis = [];
+    private string _textoPeriodo = string.Empty;
+    private string? _busca;
+    private bool _somenteErros;
+    private string _ordem = OrdenacaoMetricas.EndpointsPadrao;
+    private bool _decrescente = true;
+    private DateTime _ultimaAtualizacao = DateTime.UtcNow;
+    private bool _pausado;
+    private readonly CancellationTokenSource _cancelamento = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _periodo = Periodos.FirstOrDefault(p => Exibicao.Rotulo(p).Equals(PeriodoTexto, StringComparison.OrdinalIgnoreCase), PeriodoDashboard.Hoje);
+        _site = string.IsNullOrWhiteSpace(SiteParametro) ? null : SiteParametro;
+        _textoPeriodo = T[Exibicao.DescreverPeriodo(_periodo), (int)_periodo];
+        await CarregarAsync();
+    }
+
+    protected override void OnAfterRender(bool primeiraRenderizacao)
+    {
+        if (primeiraRenderizacao && RendererInfo.IsInteractive)
+            _ = AtualizarPeriodicamenteAsync();
+    }
+
+    private async Task CarregarAsync()
+    {
+        var painel = await Servicos.ExecutarAsync((ServicoMetricasPainel s) => s.ObterEndpointsAsync(_periodo, _site));
+        _painel = painel;
+        _grafico = new DadosGrafico(
+            painel.Serie.Select(p => Exibicao.RotuloSerie(p.Inicio, painel.Granularidade)).ToList(),
+            painel.Serie.Select(p => p.Sucesso).ToList(),
+            painel.Serie.Select(p => p.ErroCliente).ToList(),
+            painel.Serie.Select(p => p.ErroServidor).ToList());
+        _linhas = painel.Endpoints;
+        Filtrar();
+        _ultimaAtualizacao = DateTime.UtcNow;
+    }
+
+    private void Filtrar()
+    {
+        var filtradas = OrdenacaoMetricas.Filtrar(_linhas, _busca, _somenteErros);
+        _linhasVisiveis = OrdenacaoMetricas.Ordenar(filtradas, _ordem, _decrescente).Take(MaximoLinhas).ToList();
+    }
+
+    private void Ordenar(string coluna)
+    {
+        _decrescente = _ordem != coluna || !_decrescente;
+        _ordem = coluna;
+        Filtrar();
+    }
+
+    /// <summary>Exportacao com o mesmo periodo, site, filtro e ordem da tela (sem o limite de linhas visiveis).</summary>
+    private string UrlCsv => Navegacao.GetUriWithQueryParameters("/Endpoints/exportar.csv", new Dictionary<string, object?>
+    {
+        ["periodo"] = Exibicao.Rotulo(_periodo).ToLowerInvariant(),
+        ["site"] = _site,
+        ["busca"] = string.IsNullOrWhiteSpace(_busca) ? null : _busca.Trim(),
+        ["erros"] = _somenteErros ? true : null,
+        ["ordem"] = _ordem,
+        ["crescente"] = _decrescente ? null : true
+    });
+
+    private sealed record DadosGrafico(
+        IReadOnlyList<string> Rotulos,
+        IReadOnlyList<int> Sucesso,
+        IReadOnlyList<int> ErroCliente,
+        IReadOnlyList<int> ErroServidor);
+
+    private async Task AtualizarPeriodicamenteAsync()
+    {
+        using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        try
+        {
+            while (await temporizador.WaitForNextTickAsync(_cancelamento.Token))
+            {
+                await InvokeAsync(async () =>
+                {
+                    if (!_pausado && DateTime.UtcNow - _ultimaAtualizacao >= IntervaloAtualizacao)
+                        await CarregarAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private string TextoAtualizacao
+    {
+        get
+        {
+            var segundos = (int)(DateTime.UtcNow - _ultimaAtualizacao).TotalSeconds;
+            return segundos < 5 ? T["Atualizado agora"] : T["Atualizado há {0} s", segundos];
+        }
+    }
+
+    private static string Url(PeriodoDashboard periodo, string? site)
+    {
+        var parametros = new List<string>();
+        if (periodo != PeriodoDashboard.Hoje)
+            parametros.Add($"periodo={Exibicao.Rotulo(periodo).ToLowerInvariant()}");
+        if (!string.IsNullOrEmpty(site))
+            parametros.Add($"site={Uri.EscapeDataString(site)}");
+        return parametros.Count == 0 ? "/Endpoints" : "/Endpoints?" + string.Join('&', parametros);
+    }
+
+    public void Dispose()
+    {
+        _cancelamento.Cancel();
+        _cancelamento.Dispose();
+    }
+}

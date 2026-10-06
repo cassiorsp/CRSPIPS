@@ -31,6 +31,12 @@ public sealed class ServicoBloqueios(
             Quantidade = Math.Clamp(filtro.Quantidade, 1, 200)
         }, ct);
 
+    public const int LimiteExportacao = 50_000;
+
+    /// <summary>Todos os bloqueios do filtro (sem a rolagem da tela), limitados a <see cref="LimiteExportacao"/>.</summary>
+    public async Task<IReadOnlyList<Bloqueio>> ListarParaExportacaoAsync(FiltroBloqueios filtro, CancellationToken ct = default) =>
+        (await bloqueios.PesquisarAsync(filtro with { Pular = 0, Quantidade = LimiteExportacao }, ct)).Itens;
+
     public async Task<Resultado<DetalheIp>> ObterDetalheAsync(string ipTexto, CancellationToken ct = default)
     {
         if (!EnderecoIp.TentarConverter(ipTexto, out var ip))

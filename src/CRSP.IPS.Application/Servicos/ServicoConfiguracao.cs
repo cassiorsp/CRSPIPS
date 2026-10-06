@@ -43,6 +43,8 @@ public sealed class ServicoConfiguracao(
             configuracao.AlterarMotor(dados.ModoSimulacao, dados.TemposBloqueio, dados.JanelaReincidenciaDias,
                 dados.MonitorarLogIis, dados.CaminhoLogIis, dados.MonitorarHttpErr, dados.CaminhoHttpErr,
                 dados.MonitorarEventosWindows, dados.RetencaoEventosDias, relogio.GetUtcNow().UtcDateTime, contexto.Nome);
+            configuracao.AlterarRetencaoMetricas(dados.RetencaoMetricasEndpointsDias, dados.RetencaoMetricasProcessosDias,
+                relogio.GetUtcNow().UtcDateTime, contexto.Nome);
         }
         catch (ArgumentException ex)
         {

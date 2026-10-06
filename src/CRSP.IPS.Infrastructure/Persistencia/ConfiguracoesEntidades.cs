@@ -86,6 +86,8 @@ internal sealed class ConfiguracaoConfiguracao : IEntityTypeConfiguration<Config
         builder.Property(c => c.PaisesPolitica).HasMaxLength(1000).IsRequired();
         builder.Property(c => c.PortasPolitica).HasMaxLength(200).IsRequired();
         builder.Property(c => c.AtualizadaPor).HasMaxLength(200);
+        builder.Property(c => c.RetencaoMetricasEndpointsDias).HasDefaultValue(90);
+        builder.Property(c => c.RetencaoMetricasProcessosDias).HasDefaultValue(30);
     }
 }
 
@@ -202,5 +204,42 @@ internal sealed class ConfiguracaoRegraFirewallDesativada : IEntityTypeConfigura
         builder.ToTable("RegrasFirewallDesativadas");
         builder.Property(r => r.Nome).HasMaxLength(300).IsRequired();
         builder.HasIndex(r => r.Nome).IsUnique();
+    }
+}
+
+internal sealed class ConfiguracaoMetricaEndpoint : IEntityTypeConfiguration<MetricaEndpoint>
+{
+    public void Configure(EntityTypeBuilder<MetricaEndpoint> builder)
+    {
+        builder.ToTable("MetricasEndpoints");
+        builder.Property(m => m.Site).HasMaxLength(200).IsRequired();
+        builder.Property(m => m.Metodo).HasMaxLength(16).IsRequired();
+        builder.Property(m => m.Endpoint).HasMaxLength(300).IsRequired();
+        builder.HasIndex(m => new { m.HoraUtc, m.Site, m.Metodo, m.Endpoint }).IsUnique();
+        builder.HasIndex(m => new { m.Site, m.HoraUtc });
+    }
+}
+
+internal sealed class ConfiguracaoMetricaProcessoIis : IEntityTypeConfiguration<MetricaProcessoIis>
+{
+    public void Configure(EntityTypeBuilder<MetricaProcessoIis> builder)
+    {
+        builder.ToTable("MetricasProcessosIis");
+        builder.Property(m => m.Pool).HasMaxLength(200).IsRequired();
+        builder.HasIndex(m => new { m.Pool, m.InicioUtc }).IsUnique();
+        builder.HasIndex(m => m.InicioUtc);
+        builder.Ignore(m => m.MemoriaMedia);
+        builder.Ignore(m => m.CpuMedia);
+    }
+}
+
+internal sealed class ConfiguracaoSiteIis : IEntityTypeConfiguration<SiteIis>
+{
+    public void Configure(EntityTypeBuilder<SiteIis> builder)
+    {
+        builder.ToTable("SitesIis");
+        builder.Property(s => s.Nome).HasMaxLength(200).IsRequired();
+        builder.Property(s => s.Pool).HasMaxLength(200).IsRequired();
+        builder.HasIndex(s => s.Nome).IsUnique();
     }
 }

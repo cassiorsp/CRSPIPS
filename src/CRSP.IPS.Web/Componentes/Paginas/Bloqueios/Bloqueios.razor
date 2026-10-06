@@ -74,7 +74,10 @@
 <div class="card cartao cartao-cheio">
     <div class="card-header d-flex flex-wrap gap-2 align-items-center">
         <span>@T["Histórico e status dos IPs"]</span>
-        <div class="ms-auto d-flex gap-2">
+        <div class="ms-auto d-flex flex-wrap gap-2">
+            <a class="btn btn-sm btn-outline-secondary" href="@UrlCsv" download title="@T["Exporta todos os bloqueios dos filtros aplicados."]">
+                <i class="bi bi-filetype-csv"></i> @T["Exportar CSV"]
+            </a>
             <button class="btn btn-sm btn-outline-success" type="button" disabled="@(_selecionados.Count == 0)" @onclick="() => _modal = ModalBloqueio.DesbloquearSelecionados">
                 <i class="bi bi-unlock"></i> @T["Desbloquear selecionados"]
             </button>
@@ -286,17 +289,7 @@
         _filtro.Simulado = Simulado;
         _filtro.De = De;
         _filtro.Ate = Ate;
-        _consulta = new FiltroBloqueios
-        {
-            Busca = Busca,
-            Status = Enum.TryParse<StatusBloqueio>(Status, out var status) ? status : null,
-            Origem = Enum.TryParse<OrigemBloqueio>(Origem, out var origem) ? origem : null,
-            PaisCodigo = Pais,
-            RegraId = RegraId,
-            Simulado = Simulado,
-            DeUtc = ParaUtc(De),
-            AteUtc = ParaUtc(Ate?.AddDays(1))
-        };
+        _consulta = ExportacaoCsv.MontarFiltroBloqueios(Busca, Status, Origem, Pais, RegraId, Simulado, De, Ate);
         _selecionados.Clear();
         await RecarregarAsync();
     }
@@ -420,8 +413,8 @@
 
     private static string UrlDetalhe(string ip) => $"/Bloqueios/Detalhe?ip={Uri.EscapeDataString(ip)}";
 
-    private static DateTime? ParaUtc(DateOnly? data) =>
-        data is null ? null : TimeZoneInfo.ConvertTimeToUtc(data.Value.ToDateTime(TimeOnly.MinValue), TimeZoneInfo.Local);
+    /// <summary>Exportacao com os filtros aplicados (os mesmos parametros da URL da tela).</summary>
+    private string UrlCsv => "/Bloqueios/exportar.csv" + new Uri(Navegacao.Uri).Query;
 
     private sealed class FiltroTela
     {

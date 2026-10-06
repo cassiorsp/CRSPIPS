@@ -56,6 +56,30 @@ internal sealed class TrabalhadorDeteccao(IServiceScopeFactory fabricaEscopo, Si
             logger.LogInformation("Ciclo de deteccao: {Eventos} eventos, {Bloqueados} novos bloqueios", eventos.Count, bloqueados);
 
         await provedor.GetRequiredService<ServicoManutencao>().RegistrarSinalAsync(eventos.Count, ct);
+
+        await RegistrarMetricasAsync(eventos, ct);
+    }
+
+    /// <summary>
+    /// Escopo proprio: uma falha ao gravar metricas nao pode contaminar o DbContext da deteccao. Roda depois de as posicoes
+    /// de leitura serem salvas, entao uma falha aqui perde contagens em vez de repeti-las.
+    /// </summary>
+    private async Task RegistrarMetricasAsync(IReadOnlyList<EventoDetectado> eventos, CancellationToken ct)
+    {
+        if (eventos.Count == 0)
+            return;
+
+        try
+        {
+            await using var escopo = fabricaEscopo.CreateAsyncScope();
+            var registradas = await escopo.ServiceProvider.GetRequiredService<ServicoMetricasIis>().RegistrarRequisicoesAsync(eventos, ct);
+            if (registradas > 0)
+                logger.LogDebug("Metricas do IIS: {Requisicoes} requisicoes agregadas", registradas);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Falha ao gravar as metricas de requisicoes do IIS");
+        }
     }
 
     private async Task RegistrarErroAsync(Exception ex, CancellationToken ct)

@@ -11,6 +11,9 @@
     <div class="card-header d-flex flex-wrap gap-2 align-items-center">
         <span><span class="ponto-vivo @(_pausado ? "pausado" : "")"></span> @T["Eventos suspeitos em tempo real"]</span>
         <div class="ms-auto d-flex flex-wrap gap-2">
+            <input class="form-control form-control-sm fonte-mono filtro-monitor" type="search" placeholder="@T["Filtrar por IP"]" aria-label="@T["Filtrar por IP"]"
+                   title="@T["IP completo ou só o começo (ex.: 203.0.113.)."]" maxlength="45"
+                   value="@_ip" @oninput="e => AlterarFiltroAsync(() => _ip = (string?)e.Value)" />
             <select class="form-select form-select-sm filtro-monitor" aria-label="@T["Fonte"]" value="@_fonte" @onchange="e => AlterarFiltroAsync(() => _fonte = (string?)e.Value)">
                 <option value="">@T["Todas as fontes"]</option>
                 @foreach (var fonte in Enum.GetValues<TipoFonte>())
@@ -88,6 +91,8 @@
     private string? _fonte;
     private string? _pais;
     private string? _status;
+    private string? _ip;
+    private int _versaoFiltro;
     private bool _pausado;
 
     protected override async Task OnInitializedAsync()
@@ -112,6 +117,7 @@
     private async Task AlterarFiltroAsync(Action alterar)
     {
         alterar();
+        _versaoFiltro++;
         await BuscarAsync(reiniciar: true);
     }
 
@@ -120,14 +126,18 @@
         if (reiniciar)
             _linhas.Clear();
 
+        var versao = _versaoFiltro;
         var filtro = new FiltroEventos(
             Enum.TryParse<TipoFonte>(_fonte, out var fonte) ? fonte : null,
             string.IsNullOrEmpty(_pais) ? null : _pais,
-            int.TryParse(_status, out var status) ? status : null);
+            int.TryParse(_status, out var status) ? status : null,
+            string.IsNullOrWhiteSpace(_ip) ? null : _ip.Trim());
         var aposId = _linhas.Count == 0 ? (long?)null : _linhas.Max(l => l.Evento.Id);
 
         var eventos = await Servicos.ExecutarAsync((ServicoPainel s) => s.ListarEventosRecentesAsync(filtro, aposId));
-        if (eventos.Count == 0)
+
+        // O filtro mudou durante a consulta (digitacao do IP): este resultado e descartado, a busca mais nova preenche a tabela.
+        if (versao != _versaoFiltro || eventos.Count == 0)
             return;
 
         var destacar = aposId is not null;

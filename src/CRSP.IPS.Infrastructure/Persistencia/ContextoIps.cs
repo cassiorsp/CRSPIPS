@@ -21,6 +21,9 @@ public sealed class ContextoIps(DbContextOptions<ContextoIps> options) : DbConte
     public DbSet<ListaExterna> ListasExternas => Set<ListaExterna>();
     public DbSet<EntradaListaExterna> EntradasListasExternas => Set<EntradaListaExterna>();
     public DbSet<CoincidenciaListaExterna> CoincidenciasListasExternas => Set<CoincidenciaListaExterna>();
+    public DbSet<MetricaEndpoint> MetricasEndpoints => Set<MetricaEndpoint>();
+    public DbSet<MetricaProcessoIis> MetricasProcessosIis => Set<MetricaProcessoIis>();
+    public DbSet<SiteIis> SitesIis => Set<SiteIis>();
 
     public Task SalvarAsync(CancellationToken ct = default) => SaveChangesAsync(ct);
 

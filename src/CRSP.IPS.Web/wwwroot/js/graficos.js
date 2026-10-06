@@ -154,6 +154,91 @@ window.crspips = window.crspips || {};
             }));
         },
 
+        // Requisicoes por intervalo: barras empilhadas (sucesso, erro do cliente 4xx, erro do servidor 5xx).
+        requisicoes(canvas, dados) {
+            montar(canvas, c => ({
+                type: 'bar',
+                data: {
+                    labels: dados.rotulos,
+                    datasets: [
+                        { label: dados.rotuloSucesso, data: dados.sucesso, backgroundColor: '#22c55e', borderRadius: 2 },
+                        { label: dados.rotuloErroCliente, data: dados.erroCliente, backgroundColor: '#f5a524', borderRadius: 2 },
+                        { label: dados.rotuloErroServidor, data: dados.erroServidor, backgroundColor: c.perigo, borderRadius: 2 }
+                    ]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
+                        tooltip: dica(c)
+                    },
+                    scales: {
+                        x: { stacked: true, grid: { display: false }, ticks: { color: c.texto, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
+                        y: { stacked: true, beginAtZero: true, grid: { color: c.grade }, ticks: { color: c.texto, precision: 0 } }
+                    }
+                }
+            }));
+        },
+
+        // Memoria de um application pool: media (area) entre a minima e a maxima (linhas tracejadas), em MB.
+        memoria(canvas, dados) {
+            montar(canvas, c => ({
+                type: 'line',
+                data: {
+                    labels: dados.rotulos,
+                    datasets: [
+                        {
+                            label: dados.rotuloMedia,
+                            data: dados.media,
+                            borderColor: c.info,
+                            backgroundColor: degrade(canvas, c.info),
+                            fill: true,
+                            tension: .3,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            borderWidth: 2
+                        },
+                        {
+                            label: dados.rotuloMaxima,
+                            data: dados.maxima,
+                            borderColor: c.perigo,
+                            borderDash: [5, 4],
+                            tension: .3,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            borderWidth: 1.5
+                        },
+                        {
+                            label: dados.rotuloMinima,
+                            data: dados.minima,
+                            borderColor: '#22c55e',
+                            borderDash: [5, 4],
+                            tension: .3,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            borderWidth: 1.5
+                        }
+                    ]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
+                        tooltip: {
+                            ...dica(c),
+                            callbacks: { label: item => `${item.dataset.label}: ${Number(item.parsed.y).toLocaleString(undefined, { maximumFractionDigits: 0 })} MB` }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: c.texto, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
+                        y: { beginAtZero: true, grid: { color: c.grade }, ticks: { color: c.texto, callback: v => v + ' MB' } }
+                    }
+                }
+            }));
+        },
+
         destruir(canvas) {
             if (canvas && canvas._grafico) {
                 canvas._grafico.destroy();

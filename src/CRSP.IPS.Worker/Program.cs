@@ -32,6 +32,7 @@ try
     builder.Services.AddSingleton<SinalBancoPronto>();
     builder.Services.AddHostedService<InicializacaoBanco>();
     builder.Services.AddHostedService<TrabalhadorDeteccao>();
+    builder.Services.AddHostedService<TrabalhadorMetricasIis>();
     builder.Services.AddHostedService<TrabalhadorFirewall>();
     builder.Services.AddHostedService<TrabalhadorGeoIp>();
     builder.Services.AddHostedService<TrabalhadorListasExternas>();

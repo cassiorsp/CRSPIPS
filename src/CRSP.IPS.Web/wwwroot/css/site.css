@@ -202,6 +202,7 @@ body {
 .kpi-alerta .kpi-icone { background: rgba(245, 165, 36, .14); color: var(--crs-alerta); }
 .kpi-info .kpi-icone { background: rgba(59, 130, 246, .12); color: var(--crs-info); }
 .kpi-neutro .kpi-icone { background: rgba(100, 116, 139, .14); color: var(--crs-neutro); }
+.kpi-sucesso .kpi-icone { background: rgba(34, 197, 94, .14); color: #22c55e; }
 
 .kpi-periodo {
     font-size: .75rem;
@@ -498,4 +499,19 @@ body {
 .legenda-modos {
     padding-left: 1.1rem;
     flex: 1 1 32rem;
+}
+
+/* Colunas ordenaveis (CabecalhoOrdenavel): clique alterna crescente/decrescente. */
+.cabecalho-ordenavel {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.cabecalho-ordenavel:hover {
+    color: var(--bs-body-color) !important;
+}
+
+.cabecalho-ordenavel .icone-ordenar {
+    opacity: .35;
 }

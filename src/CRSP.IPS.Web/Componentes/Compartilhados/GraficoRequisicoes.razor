@@ -1,0 +1,29 @@
+@* Barras empilhadas (Chart.js): requisicoes com sucesso, erro do cliente (4xx) e erro do servidor (5xx). *@
+@inherits GraficoBase
+
+<div class="grafico"><canvas @ref="Canvas" role="img" aria-label="@RotuloSucesso / @RotuloErroCliente / @RotuloErroServidor"></canvas></div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<string> Rotulos { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<int> Sucesso { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<int> ErroCliente { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<int> ErroServidor { get; set; } = [];
+    [Parameter, EditorRequired] public string RotuloSucesso { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string RotuloErroCliente { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string RotuloErroServidor { get; set; } = string.Empty;
+
+    protected override string Funcao => "requisicoes";
+
+    protected override object Versao => Sucesso;
+
+    protected override object MontarDados() => new
+    {
+        rotulos = Rotulos,
+        sucesso = Sucesso,
+        erroCliente = ErroCliente,
+        erroServidor = ErroServidor,
+        rotuloSucesso = RotuloSucesso,
+        rotuloErroCliente = RotuloErroCliente,
+        rotuloErroServidor = RotuloErroServidor
+    };
+}
