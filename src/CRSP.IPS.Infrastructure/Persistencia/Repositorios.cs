@@ -210,6 +210,11 @@ internal sealed class RepositorioEventos(ContextoIps contexto) : IRepositorioEve
         }
         if (filtro.CodigoStatus is { } codigo)
             consulta = consulta.Where(e => e.CodigoStatus == codigo);
+        if (!string.IsNullOrWhiteSpace(filtro.Ip))
+        {
+            var ip = filtro.Ip.Trim();
+            consulta = consulta.Where(e => e.Ip.StartsWith(ip));
+        }
         if (aposId is { } id)
             consulta = consulta.Where(e => e.Id > id);
 
@@ -453,4 +458,133 @@ internal static class ContagemPorHora
                 l.Quantidade))
             .ToList();
     }
+}
+
+internal sealed class RepositorioMetricas(ContextoIps contexto) : IRepositorioMetricas
+{
+    public async Task<IReadOnlyList<MetricaEndpoint>> ObterEndpointsDasHorasAsync(IReadOnlyCollection<DateTime> horasUtc, CancellationToken ct = default) =>
+        await contexto.MetricasEndpoints.Where(m => horasUtc.Contains(m.HoraUtc)).ToListAsync(ct);
+
+    public void AdicionarEndpoint(MetricaEndpoint metrica) => contexto.MetricasEndpoints.Add(metrica);
+
+    public async Task<IReadOnlyList<MetricaProcessoIis>> ObterJanelaProcessosAsync(DateTime inicioUtc, CancellationToken ct = default) =>
+        await contexto.MetricasProcessosIis.Where(m => m.InicioUtc == inicioUtc).ToListAsync(ct);
+
+    public void AdicionarProcesso(MetricaProcessoIis metrica) => contexto.MetricasProcessosIis.Add(metrica);
+
+    public async Task<IReadOnlyList<SiteIis>> ListarSitesAsync(CancellationToken ct = default) =>
+        await contexto.SitesIis.ToListAsync(ct);
+
+    public void AdicionarSite(SiteIis site) => contexto.SitesIis.Add(site);
+
+    public Task<int> RemoverEndpointsAnterioresAsync(DateTime limiteUtc, CancellationToken ct = default) =>
+        contexto.MetricasEndpoints.Where(m => m.HoraUtc < limiteUtc).ExecuteDeleteAsync(ct);
+
+    public Task<int> RemoverProcessosAnterioresAsync(DateTime limiteUtc, CancellationToken ct = default) =>
+        contexto.MetricasProcessosIis.Where(m => m.InicioUtc < limiteUtc).ExecuteDeleteAsync(ct);
+
+    public async Task<IReadOnlyList<LinhaRequisicoes>> ResumirEndpointsAsync(DateTime desdeUtc, string? site, CancellationToken ct = default)
+    {
+        var consulta = contexto.MetricasEndpoints.AsNoTracking().Where(m => m.HoraUtc >= desdeUtc);
+        if (site is not null)
+            consulta = consulta.Where(m => m.Site == site);
+
+        var linhas = await consulta
+            .GroupBy(m => new { m.Site, m.Metodo, m.Endpoint })
+            .Select(g => new
+            {
+                g.Key.Site,
+                g.Key.Metodo,
+                g.Key.Endpoint,
+                Total = g.Sum(m => m.Total),
+                Sucesso = g.Sum(m => m.Sucesso),
+                Redirecionamento = g.Sum(m => m.Redirecionamento),
+                ErroCliente = g.Sum(m => m.ErroCliente),
+                ErroServidor = g.Sum(m => m.ErroServidor),
+                TempoTotal = g.Sum(m => m.TempoTotalMs),
+                TempoMaximo = g.Max(m => m.TempoMaximoMs)
+            })
+            .ToListAsync(ct);
+
+        return linhas
+            .Select(l => new LinhaRequisicoes(l.Site, l.Metodo, l.Endpoint, l.Total, l.Sucesso, l.Redirecionamento, l.ErroCliente, l.ErroServidor, l.TempoTotal, l.TempoMaximo))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<LinhaRequisicoes>> ResumirSitesAsync(DateTime desdeUtc, CancellationToken ct = default)
+    {
+        var linhas = await contexto.MetricasEndpoints.AsNoTracking()
+            .Where(m => m.HoraUtc >= desdeUtc)
+            .GroupBy(m => m.Site)
+            .Select(g => new
+            {
+                Site = g.Key,
+                Total = g.Sum(m => m.Total),
+                Sucesso = g.Sum(m => m.Sucesso),
+                Redirecionamento = g.Sum(m => m.Redirecionamento),
+                ErroCliente = g.Sum(m => m.ErroCliente),
+                ErroServidor = g.Sum(m => m.ErroServidor),
+                TempoTotal = g.Sum(m => m.TempoTotalMs),
+                TempoMaximo = g.Max(m => m.TempoMaximoMs)
+            })
+            .ToListAsync(ct);
+
+        return linhas
+            .Select(l => new LinhaRequisicoes(l.Site, string.Empty, string.Empty, l.Total, l.Sucesso, l.Redirecionamento, l.ErroCliente, l.ErroServidor, l.TempoTotal, l.TempoMaximo))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<RequisicoesHora>> ContarRequisicoesPorHoraAsync(DateTime desdeUtc, IReadOnlyCollection<string>? sites, CancellationToken ct = default)
+    {
+        var consulta = contexto.MetricasEndpoints.AsNoTracking().Where(m => m.HoraUtc >= desdeUtc);
+        if (sites is not null)
+            consulta = consulta.Where(m => sites.Contains(m.Site));
+
+        var linhas = await consulta
+            .GroupBy(m => m.HoraUtc)
+            .Select(g => new
+            {
+                Hora = g.Key,
+                Sucesso = g.Sum(m => m.Sucesso + m.Redirecionamento),
+                ErroCliente = g.Sum(m => m.ErroCliente),
+                ErroServidor = g.Sum(m => m.ErroServidor)
+            })
+            .ToListAsync(ct);
+
+        return linhas.Select(l => new RequisicoesHora(l.Hora, l.Sucesso, l.ErroCliente, l.ErroServidor)).ToList();
+    }
+
+    public async Task<IReadOnlyList<ResumoPool>> ResumirPoolsAsync(DateTime desdeUtc, CancellationToken ct = default)
+    {
+        var linhas = await contexto.MetricasProcessosIis.AsNoTracking()
+            .Where(m => m.InicioUtc >= desdeUtc)
+            .GroupBy(m => m.Pool)
+            .Select(g => new
+            {
+                Pool = g.Key,
+                Minima = g.Min(m => m.MemoriaMinima),
+                Maxima = g.Max(m => m.MemoriaMaxima),
+                Soma = g.Sum(m => m.MemoriaSoma),
+                CpuSoma = g.Sum(m => m.CpuSoma),
+                CpuMaxima = g.Max(m => m.CpuMaxima),
+                Amostras = g.Sum(m => m.Amostras),
+                Processos = g.Max(m => m.ProcessosMaximo),
+                Ultima = g.Max(m => m.InicioUtc)
+            })
+            .ToListAsync(ct);
+
+        return linhas
+            .Select(l =>
+            {
+                var amostras = Math.Max(1, l.Amostras);
+                return new ResumoPool(l.Pool, l.Minima, l.Maxima, l.Soma / amostras, l.CpuSoma / amostras, l.CpuMaxima, l.Processos, l.Ultima);
+            })
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<MetricaProcessoIis>> ListarProcessosAsync(DateTime desdeUtc, string pool, CancellationToken ct = default) =>
+        await contexto.MetricasProcessosIis.AsNoTracking()
+            .Where(m => m.Pool == pool && m.InicioUtc >= desdeUtc)
+            .OrderBy(m => m.InicioUtc)
+            .ToListAsync(ct);
 }

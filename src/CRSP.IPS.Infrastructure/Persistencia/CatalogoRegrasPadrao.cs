@@ -20,9 +20,9 @@ internal static class CatalogoRegrasPadrao
             TipoFonte.LogIis, TipoCriterio.CodigoStatus, "404", 30, 60, true, agora));
 
         yield return (1, RegraDeteccao.Criar("Varredura de URLs sensíveis",
-            "Tentativas de acesso a caminhos típicos de ataque (WordPress, .env, .git, phpMyAdmin).",
+            "Tentativas de acesso a caminhos típicos de ataque (WordPress, .env, .git, pastas de credenciais, phpMyAdmin).",
             TipoFonte.LogIis, TipoCriterio.PadraoUrl,
-            @"(wp-login\.php|xmlrpc\.php|/wp-admin|/wp-content|/\.env|/\.git/|phpmyadmin|/cgi-bin/|/vendor/phpunit|/boaform|/HNAP1|/actuator|/\.aws/|/config\.json|/server-status|\.\./\.\./)",
+            @"(wp-login\.php|xmlrpc\.php|/wp-admin|/wp-content|/wp-includes|/wp-json|/\.env|/\.git|/\.(aws|docker|claude|anthropic|config|amplifyrc|boto|npmrc|kube|azure|s3cfg|bash_history|terraform|travis)|phpmyadmin|/cgi-bin/|/vendor/phpunit|/boaform|/HNAP1|/actuator|/access/api/v1/system/ping|/server-status|\.\./\.\./)",
             3, 300, true, agora));
 
         yield return (1, RegraDeteccao.Criar("Excesso de 401/403",

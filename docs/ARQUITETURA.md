@@ -42,13 +42,18 @@ e desfaz alterações manuais feitas no firewall.
 - **Tabelas sem paginação**: Bloqueios e Auditoria usam `<Virtualize>` com `ItemsProvider` (rolagem infinita, `Fatia<T>` com
   `Pular`/`Quantidade`). Em telas a partir de 1200 px de largura, as telas de tabela usam `.pagina-cheia`/`.cartao-cheio`:
   o cartão vai até o fim da janela e só a tabela rola. Em telas menores a página rola e a tabela tem altura fixa.
-- **Gráficos** com Chart.js (`GraficoLinha`, `GraficoRosca`, `GraficoBarras` → `wwwroot/js/graficos.js`). O componente
+- **Gráficos** com Chart.js (`GraficoLinha`, `GraficoRosca`, `GraficoBarras`, `GraficoRequisicoes`, `GraficoMemoria` → `wwwroot/js/graficos.js`, todos sobre `GraficoBase`). O componente
   só chama o JavaScript quando a lista de dados muda; ao trocar o tema, os gráficos são redesenhados com as cores novas.
 - **Bibliotecas visuais**: Bootstrap 5 local (`wwwroot/lib`); pelo jsDelivr, Chart.js 4, Bootstrap Icons, flag-icons
   (componente `Bandeira`) e a fonte Inter. Sem internet no navegador, o painel funciona, mas sem ícones, bandeiras e
   gráficos. jQuery não é usado: o Blazor controla o DOM e a validação dos formulários é feita pelo `EditForm`.
 - **Dashboard**: `ServicoPainel.ObterIndicadoresAsync(PeriodoDashboard)`. As séries são contadas por hora UTC direto no
   SQLite (`ContagemPorHora`, `substr(data, 1, 13)`) e reagrupadas por hora, dia ou semana no fuso do servidor.
+- **Colunas ordenáveis**: o componente `CabecalhoOrdenavel` (clique alterna crescente/decrescente) e `OrdenacaoMetricas` (filtro e ordem de
+  Endpoints, sites e pools do IIS) são compartilhados entre as telas e a exportação CSV, então a tela e o arquivo sempre saem iguais.
+  Valores ausentes (site sem amostra do pool) ficam sempre no fim.
+- **Monitor**: filtros por fonte, país, status e IP (`FiltroEventos.Ip`, prefixo com `StartsWith`). Cada mudança de filtro incrementa
+  uma versão; a consulta que terminar depois de o filtro mudar é descartada, para não misturar resultados ao digitar o IP.
 - **CSV das listas**: `ArquivoCsvListas` lê o arquivo (`;` ou `,`, aspas, comentários) e `ServicoListas.ImportarAsync`
   valida cada linha como na inclusão manual e grava tudo com um único registro de auditoria.
 
@@ -93,6 +98,8 @@ Fontes (IFonteEventos)           ServicoDeteccao                          Servic
   (inserção por nome). Novas regras e listas entram sozinhas em bancos existentes, e as regras excluídas não voltam.
   Listas externas do catálogo não podem ser excluídas (só desativadas); as cadastradas pelo administrador têm
   `Personalizada = true` e podem ser excluídas (entradas e coincidências saem em cascata).
+  O catálogo só insere regras que ainda não existem pelo nome: alterar o padrão de uma regra já entregue vale para instalações novas,
+  e quem já tem a regra precisa editá-la na tela **Regras**.
 
 ## Trabalhadores do Worker
 
@@ -100,9 +107,43 @@ Fontes (IFonteEventos)           ServicoDeteccao                          Servic
 |---|---|---|
 | `InicializacaoBanco` | uma vez | Migrations e dados iniciais, depois de o serviço responder ao Windows (evita o erro 1053) |
 | `TrabalhadorDeteccao` | 5 s | Lê as fontes e processa os eventos |
-| `TrabalhadorFirewall` | 2 s | Sincroniza o firewall, aplica a política de países, retenção (1 h) |
+| `TrabalhadorFirewall` | 2 s | Sincroniza o firewall, aplica a política de países; a cada 1 h aplica a retenção (eventos e métricas) |
 | `TrabalhadorGeoIp` | 15 s | Download das bases MaxMind e preenchimento de país retroativo (10 min) |
 | `TrabalhadorListasExternas` | 1 min | Download das listas externas vencidas |
+| `TrabalhadorMetricasIis` | 30 s | Memória e CPU dos processos `w3wp` por application pool, e o mapa site → pool |
+
+## Monitoramento do IIS (telas Endpoints e IIS)
+
+Além de detectar ataques, o Worker mede o que acontece no IIS. Só agregados vão para o banco, nunca uma linha por requisição.
+
+- **Requisições**: o `TrabalhadorDeteccao` já lê todo o log do IIS. Depois de processar o ciclo, `ServicoMetricasIis.RegistrarRequisicoesAsync`
+  soma cada requisição em `MetricasEndpoints` (uma linha por hora UTC, site, método e endpoint). Status 1xx-3xx contam como sem erro,
+  4xx como erro do cliente e 5xx como erro do servidor; `time-taken` alimenta o tempo médio e máximo. Roda em escopo próprio, depois de salvar
+  as posições de leitura: uma falha perde contagens em vez de duplicá-las.
+- **Endpoint** (`NormalizadorEndpoint`): sem query string, em minúsculas, com números, GUIDs e tokens trocados por `{id}`
+  (`/api/os/123` → `/api/os/{id}`); arquivos estáticos viram `(arquivos estáticos)`. Máximo de 500 endpoints distintos por site e hora;
+  o excedente cai em `(outros)`.
+- **Memória e CPU**: `AmostradorProcessosIis` lê `w3wp.exe` por WMI (o pool vem do argumento `-ap`) e a memória privada/CPU do processo.
+  As amostras de cada pool (soma dos processos) viram janelas de 5 minutos em `MetricasProcessosIis` com mínimo, máximo e média.
+  O pool só aparece depois da primeira requisição, pois o IIS inicia o `w3wp` sob demanda.
+- **Site → pool**: `ResolvedorSitesIis` lê o `applicationHost.config`; o Worker grava o mapa em `SitesIis`, porque o painel não lê o arquivo.
+  Com `cs-host` habilitado no log, o nome do site nas requisições é o hostname e pode não casar com o nome do site no IIS
+  (a memória do pool deixa de aparecer na linha daquele site).
+- **Retenção**: ajustável em **Configurações** (`Configuracao.RetencaoMetricasEndpointsDias`, padrão 90, e `RetencaoMetricasProcessosDias`, padrão 30).
+  `ServicoManutencao.AplicarRetencaoAsync`, chamado pelo `TrabalhadorFirewall` a cada hora, também remove os eventos antigos.
+- **Telas**: `/Endpoints` (KPIs, gráfico de requisições por hora/dia, tabela ordenável por qualquer coluna, até 500 linhas na tela, com filtro e exportação CSV) e `/Iis` (sites com acessos, erros,
+  memória mínima/média/máxima e CPU, ordenáveis e exportáveis; tabela de pools; gráfico de memória do pool e de requisições dos sites do pool).
+  Atualizam a cada 30 s.
+
+## Exportação CSV
+
+`Infra/ExportacaoCsv.cs` (`MapearExportacoesCsv`) expõe, com login obrigatório, `/Endpoints/exportar.csv`, `/Iis/sites.csv` e
+`/Bloqueios/exportar.csv`. Os botões da tela são links com os mesmos parâmetros da tela (período, site, busca, ordem, filtros de
+Bloqueios na query string). Cada endpoint repete o filtro e a ordenação da tela (`OrdenacaoMetricas`, `MontarFiltroBloqueios`) e devolve todas as
+linhas, sem o limite de linhas visíveis; Bloqueios exporta no máximo `ServicoBloqueios.LimiteExportacao` (50.000).
+
+Formato: `;` como separador, UTF-8 com BOM (Excel pt-BR), datas no fuso do servidor, cabeçalhos no idioma do usuário. Textos que
+começam com `= + - @` ganham um apóstrofo (injeção de fórmula: URLs e motivos vêm do tráfego).
 
 ## Banco de dados
 
@@ -139,3 +180,5 @@ dotnet test CRSP.IPS.slnx
 
 Um dos testes lê (sem alterar) o Windows Firewall real para validar a interface COM.
 `PaginasWebTestes` renderiza todas as telas em pt-BR e inglês e salva amostras em `%TEMP%\crspips-amostras`.
+Também cobre as exportações CSV (cabeçalho, filtros, autenticação), o filtro por IP do Monitor e a ordenação das tabelas de métricas.
+

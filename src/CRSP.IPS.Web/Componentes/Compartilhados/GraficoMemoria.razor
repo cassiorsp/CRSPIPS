@@ -1,0 +1,29 @@
+@* Linhas (Chart.js): memoria minima, media e maxima de um application pool, em MB. *@
+@inherits GraficoBase
+
+<div class="grafico"><canvas @ref="Canvas" role="img" aria-label="@RotuloMedia / @RotuloMaxima / @RotuloMinima"></canvas></div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<string> Rotulos { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<double> Minima { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<double> Media { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<double> Maxima { get; set; } = [];
+    [Parameter, EditorRequired] public string RotuloMinima { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string RotuloMedia { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string RotuloMaxima { get; set; } = string.Empty;
+
+    protected override string Funcao => "memoria";
+
+    protected override object Versao => Media;
+
+    protected override object MontarDados() => new
+    {
+        rotulos = Rotulos,
+        minima = Minima,
+        media = Media,
+        maxima = Maxima,
+        rotuloMinima = RotuloMinima,
+        rotuloMedia = RotuloMedia,
+        rotuloMaxima = RotuloMaxima
+    };
+}

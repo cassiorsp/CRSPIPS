@@ -10,6 +10,7 @@ public sealed class ServicoManutencao(
     IRepositorioConfiguracao configuracoes,
     IRepositorioEventos eventos,
     IRepositorioListasExternas listasExternas,
+    ServicoMetricasIis metricasIis,
     IUnidadeDeTrabalho unidadeDeTrabalho,
     TimeProvider relogio,
     ILogger<ServicoManutencao> logger)
@@ -50,6 +51,7 @@ public sealed class ServicoManutencao(
         var limite = relogio.GetUtcNow().UtcDateTime.AddDays(-configuracao.RetencaoEventosDias);
         var removidos = await eventos.RemoverAnterioresAsync(limite, ct);
         var coincidencias = await listasExternas.RemoverCoincidenciasAnterioresAsync(limite, ct);
+        await metricasIis.AplicarRetencaoAsync(ct);
         if (removidos > 0 || coincidencias > 0)
             logger.LogInformation(
                 "Retencao: {Eventos} eventos e {Coincidencias} coincidencias de listas externas removidos",

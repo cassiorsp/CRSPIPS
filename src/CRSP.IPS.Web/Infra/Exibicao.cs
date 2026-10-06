@@ -132,6 +132,11 @@ public static class Exibicao
         _ => $"{(int)valor}d"
     };
 
+    /// <summary>Memoria em MB ate 1 GB e em GB acima disso ("20 MB", "1,9 GB").</summary>
+    public static string Memoria(long bytes) => bytes >= 1024L * 1024 * 1024
+        ? $"{(double)bytes / (1024L * 1024 * 1024):N1} GB"
+        : $"{(double)bytes / (1024 * 1024):N0} MB";
+
     /// <summary>Texto do periodo nos titulos dos cards ("Hoje", "7 dias", "todo o período").</summary>
     public static string DescreverPeriodo(PeriodoDashboard valor) => valor switch
     {

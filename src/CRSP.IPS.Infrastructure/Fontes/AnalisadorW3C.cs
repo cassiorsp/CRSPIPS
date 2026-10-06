@@ -59,7 +59,8 @@ internal sealed class AnalisadorW3C
             CodigoStatus: int.TryParse(Valor(valores, "sc-status"), out var status) ? status : null,
             UserAgent: Valor(valores, "cs(User-Agent)")?.Replace('+', ' '),
             MotivoHttpErr: Valor(valores, "s-reason"),
-            Site: ObterSite(valores, idSiteDoArquivo, nomeDoSite));
+            Site: ObterSite(valores, idSiteDoArquivo, nomeDoSite),
+            TempoMs: int.TryParse(Valor(valores, "time-taken"), out var tempo) ? tempo : null);
     }
 
     /// <summary>

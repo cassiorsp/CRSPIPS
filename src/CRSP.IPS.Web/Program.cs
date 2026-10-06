@@ -109,6 +109,8 @@ app.MapGet("/Listas/modelo.csv", () =>
         "text/csv; charset=utf-8", "crspips-modelo-lista.csv"))
     .RequireAuthorization();
 
+app.MapearExportacoesCsv();
+
 app.Run();
 
 public partial class Program;

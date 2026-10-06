@@ -1596,4 +1596,63 @@
   <data name="Listas externas: {0} em {1} regra(s)" xml:space="preserve">
     <value>External lists: {0} in {1} rule(s)</value>
   </data>
+  <data name="Endpoints" xml:space="preserve"><value>Endpoints</value></data>
+  <data name="IIS" xml:space="preserve"><value>IIS</value></data>
+  <data name="Todos os sites" xml:space="preserve"><value>All sites</value></data>
+  <data name="Ainda não há requisições registradas no período." xml:space="preserve"><value>No requests recorded in the period yet.</value></data>
+  <data name="O Worker lê o log do IIS a cada 5 segundos e conta as requisições a partir do momento em que foi iniciado." xml:space="preserve"><value>The Worker reads the IIS log every 5 seconds and counts requests from the moment it started.</value></data>
+  <data name="O Worker está offline." xml:space="preserve"><value>The Worker is offline.</value></data>
+  <data name="Requisições" xml:space="preserve"><value>Requests</value></data>
+  <data name="Sem erro" xml:space="preserve"><value>No error</value></data>
+  <data name="Respostas 1xx, 2xx e 3xx." xml:space="preserve"><value>1xx, 2xx and 3xx responses.</value></data>
+  <data name="Erros do cliente (4xx)" xml:space="preserve"><value>Client errors (4xx)</value></data>
+  <data name="Respostas 4xx: pedido inválido, não autorizado ou não encontrado." xml:space="preserve"><value>4xx responses: invalid, unauthorized or not found.</value></data>
+  <data name="Erros do servidor (5xx)" xml:space="preserve"><value>Server errors (5xx)</value></data>
+  <data name="Respostas 5xx: falha na aplicação." xml:space="preserve"><value>5xx responses: application failure.</value></data>
+  <data name="Tempo médio" xml:space="preserve"><value>Average time</value></data>
+  <data name="máx. {0} ms" xml:space="preserve"><value>max {0} ms</value></data>
+  <data name="{0} endpoints" xml:space="preserve"><value>{0} endpoints</value></data>
+  <data name="Somente com erro" xml:space="preserve"><value>Errors only</value></data>
+  <data name="Filtrar endpoint" xml:space="preserve"><value>Filter endpoint</value></data>
+  <data name="Método" xml:space="preserve"><value>Method</value></data>
+  <data name="Endpoint" xml:space="preserve"><value>Endpoint</value></data>
+  <data name="Total" xml:space="preserve"><value>Total</value></data>
+  <data name="% erro" xml:space="preserve"><value>% errors</value></data>
+  <data name="Tempo máx." xml:space="preserve"><value>Max time</value></data>
+  <data name="Nenhum endpoint no período." xml:space="preserve"><value>No endpoints in the period.</value></data>
+  <data name="Mostrando os {0} primeiros. Use o filtro para refinar." xml:space="preserve"><value>Showing the first {0}. Use the filter to narrow down.</value></data>
+  <data name="Ainda não há amostras dos processos do IIS no período." xml:space="preserve"><value>No IIS process samples in the period yet.</value></data>
+  <data name="O Worker mede a memória e a CPU dos processos w3wp a cada 30 segundos. Um application pool só aparece depois de receber a primeira requisição (o IIS inicia o processo sob demanda)." xml:space="preserve"><value>The Worker measures memory and CPU of the w3wp processes every 30 seconds. An application pool only shows up after its first request (IIS starts the process on demand).</value></data>
+  <data name="Sites" xml:space="preserve"><value>Sites</value></data>
+  <data name="Application pool" xml:space="preserve"><value>Application pool</value></data>
+  <data name="Erros 5xx" xml:space="preserve"><value>5xx errors</value></data>
+  <data name="Memória mín." xml:space="preserve"><value>Min memory</value></data>
+  <data name="Memória privada dos processos do pool no período." xml:space="preserve"><value>Private memory of the pool processes in the period.</value></data>
+  <data name="Memória média" xml:space="preserve"><value>Average memory</value></data>
+  <data name="Memória máx." xml:space="preserve"><value>Max memory</value></data>
+  <data name="CPU média" xml:space="preserve"><value>Average CPU</value></data>
+  <data name="Nenhum site no período." xml:space="preserve"><value>No sites in the period.</value></data>
+  <data name="Memória do pool" xml:space="preserve"><value>Pool memory</value></data>
+  <data name="Mínima" xml:space="preserve"><value>Minimum</value></data>
+  <data name="Média" xml:space="preserve"><value>Average</value></data>
+  <data name="Máxima" xml:space="preserve"><value>Maximum</value></data>
+  <data name="Pools do IIS" xml:space="preserve"><value>IIS pools</value></data>
+  <data name="CPU máx." xml:space="preserve"><value>Max CPU</value></data>
+  <data name="Processos" xml:space="preserve"><value>Processes</value></data>
+  <data name="Último sinal: {0}" xml:space="preserve"><value>Last sample: {0}</value></data>
+  <data name="Requisições dos sites do pool" xml:space="preserve"><value>Requests of the pool sites</value></data>
+  <data name="Retenção das métricas de endpoints (dias)" xml:space="preserve"><value>Endpoint metrics retention (days)</value></data>
+  <data name="Requisições agregadas por hora, mostradas na tela Endpoints." xml:space="preserve"><value>Requests aggregated per hour, shown on the Endpoints screen.</value></data>
+  <data name="Retenção das métricas do IIS (dias)" xml:space="preserve"><value>IIS metrics retention (days)</value></data>
+  <data name="Memória e CPU dos application pools, mostradas na tela IIS." xml:space="preserve"><value>Memory and CPU of the application pools, shown on the IIS screen.</value></data>
+  <data name="A retenção das métricas deve estar entre 1 e 365 dias." xml:space="preserve"><value>Metrics retention must be between 1 and 365 days.</value></data>
+  <data name="Exportar CSV" xml:space="preserve"><value>Export CSV</value></data>
+  <data name="Exporta todas as linhas do filtro atual, na ordem da tabela." xml:space="preserve"><value>Exports every row of the current filter, in the table order.</value></data>
+  <data name="Exporta todos os bloqueios dos filtros aplicados." xml:space="preserve"><value>Exports every block matching the applied filters.</value></data>
+  <data name="Filtrar por IP" xml:space="preserve"><value>Filter by IP</value></data>
+  <data name="IP completo ou só o começo (ex.: 203.0.113.)." xml:space="preserve"><value>Full IP or just its beginning (e.g. 203.0.113.).</value></data>
+  <data name="Cidade" xml:space="preserve"><value>City</value></data>
+  <data name="Organização" xml:space="preserve"><value>Organization</value></data>
+  <data name="Encerrado em" xml:space="preserve"><value>Ended at</value></data>
+  <data name="Criado por" xml:space="preserve"><value>Created by</value></data>
 </root>

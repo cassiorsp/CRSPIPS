@@ -46,7 +46,8 @@ public sealed record EventoDetectado(
     string? MotivoHttpErr = null,
     int? IdEventoWindows = null,
     string? Detalhe = null,
-    string? Site = null);
+    string? Site = null,
+    int? TempoMs = null);
 
 /// <summary>
 /// Grupos de regras de bloqueio no firewall, cada um com prefixo proprio (facil de identificar no wf.msc).
@@ -150,7 +151,8 @@ public sealed record IndicadoresDashboard(
     IReadOnlyList<Bloqueio> BloqueiosRecentes);
 
 /// <summary>Filtros do Monitor. Nulo = todos.</summary>
-public sealed record FiltroEventos(TipoFonte? Fonte = null, string? PaisCodigo = null, int? CodigoStatus = null);
+/// <param name="Ip">IP completo ou so o comeco ("203.0.113.").</param>
+public sealed record FiltroEventos(TipoFonte? Fonte = null, string? PaisCodigo = null, int? CodigoStatus = null, string? Ip = null);
 
 /// <summary>Valores presentes nos eventos registrados, para preencher os filtros do Monitor.</summary>
 public sealed record OpcoesFiltroEventos(IReadOnlyList<string> Paises, IReadOnlyList<int> CodigosStatus);
@@ -217,7 +219,9 @@ public sealed record DadosConfiguracaoMotor(
     bool MonitorarHttpErr,
     string CaminhoHttpErr,
     bool MonitorarEventosWindows,
-    int RetencaoEventosDias);
+    int RetencaoEventosDias,
+    int RetencaoMetricasEndpointsDias = 90,
+    int RetencaoMetricasProcessosDias = 30);
 
 public sealed record DadosPoliticaPaises(
     ModoPoliticaPaises Modo,

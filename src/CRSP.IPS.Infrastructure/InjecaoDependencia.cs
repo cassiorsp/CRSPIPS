@@ -42,6 +42,7 @@ public static class InjecaoDependencia
         services.AddScoped<IRepositorioStatusWorker, RepositorioStatusWorker>();
         services.AddScoped<IRepositorioRegrasFirewallDesativadas, RepositorioRegrasFirewallDesativadas>();
         services.AddScoped<IRepositorioListasExternas, RepositorioListasExternas>();
+        services.AddScoped<IRepositorioMetricas, RepositorioMetricas>();
 
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IServicoGeolocalizacao, ServicoGeolocalizacaoMaxMind>();
@@ -58,6 +59,7 @@ public static class InjecaoDependencia
     {
         services.AddSingleton<IServicoFirewall, FirewallWindows>();
         services.AddSingleton<EstadoLeitoresArquivo>();
+        services.AddSingleton<IAmostradorProcessosIis, AmostradorProcessosIis>();
         services.AddSingleton(provedor => new ResolvedorSitesIis(provedor.GetRequiredService<ILogger<ResolvedorSitesIis>>()));
         services.AddScoped<IFonteEventos, LeitorLogIis>();
         services.AddScoped<IFonteEventos, LeitorHttpErr>();

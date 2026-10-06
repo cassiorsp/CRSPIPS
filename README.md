@@ -26,6 +26,8 @@ Desenvolvido por **crsp.dev**
 - [Instalação passo a passo](#instalação-passo-a-passo)
 - [Primeira configuração](#primeira-configuração)
 - [Listas negras](#listas-negras)
+- [Endpoints e IIS: desempenho dos sites](#endpoints-e-iis-desempenho-dos-sites)
+- [Exportar para CSV](#exportar-para-csv)
 - [Testando a instalação](#testando-a-instalação)
 - [Comandos do dia a dia](#comandos-do-dia-a-dia)
 - [Atualizando para uma nova versão](#atualizando-para-uma-nova-versão)
@@ -75,7 +77,7 @@ São duas partes:
 | Parte | O que faz | Onde roda |
 |---|---|---|
 | **Serviço CRSPIPS** | Lê os logs, detecta ataques e mexe no firewall | Serviço do Windows, como LocalSystem |
-| **Painel web** | Dashboard, bloqueios, regras, listas e configurações | Site no IIS |
+| **Painel web** | Dashboard, monitor, endpoints e IIS, bloqueios, regras, listas e configurações | Site no IIS |
 
 O painel **nunca** mexe no firewall diretamente. Ele só registra o que você quer, e o serviço aplica em até 2 segundos.
 Assim o site no IIS não precisa de permissão de administrador.
@@ -83,7 +85,10 @@ Assim o site no IIS não precisa de permissão de administrador.
 ## Funcionalidades
 
 - **Dashboard** com ataques, países de origem, IPs mais agressivos e URLs mais atacadas, atualizado sozinho a cada 30 segundos. Um filtro de período (**Hoje, 7, 14, 30, 90, 120, 180, 360 dias ou Tudo**) vale para todos os cards, gráficos e tabelas.
-- **Monitor em tempo real** dos eventos suspeitos, com país, cidade, provedor e qual site foi atacado. Filtra por fonte, país e status HTTP.
+- **Monitor em tempo real** dos eventos suspeitos, com país, cidade, provedor e qual site foi atacado. Filtra por fonte, país, status HTTP e IP (completo ou só o começo).
+- **Endpoints**: requisições por site, método e endpoint (total, sem erro, 4xx, 5xx, % de erro, tempo médio e máximo), com gráfico por hora ou dia e tabela ordenável por qualquer coluna.
+- **IIS**: acessos, erros e tempo de resposta de cada site, e memória e CPU de cada application pool (mínima, média e máxima), com gráficos.
+- **Exportação para CSV** das tabelas Endpoints, Sites do IIS e Bloqueios, respeitando os filtros e a ordem da tela.
 - **Proteção de RDP e SQL Server** pelas falhas de login do Windows (eventos 4625, 140 e 18456).
 - **Proteção dos sites**: varreduras, páginas inexistentes, injeção SQL, XSS, path traversal, Log4Shell, busca de backups e arquivos de configuração.
 - **16 regras prontas**, fáceis de ligar, desligar e ajustar, e regras próprias com expressões regulares.
@@ -104,7 +109,7 @@ Assim o site no IIS não precisa de permissão de administrador.
 | Sistema | Windows Server 2016 ou superior |
 | IIS | Instalado, com o **.NET 10 Hosting Bundle** e o recurso **WebSocket Protocol** (o painel usa WebSocket para atualizar as telas) |
 | Firewall | Windows Firewall ligado, com a ação padrão de entrada **Bloquear** (é o padrão do Windows) |
-| Logs do IIS | Formato W3C (o padrão) |
+| Logs do IIS | Formato W3C (o padrão). Os campos `time-taken` e `sc-status` (padrão) alimentam as telas Endpoints e IIS |
 | Internet (saída HTTPS) | `download.maxmind.com`, `www.spamhaus.org`, `feeds.dshield.org` |
 | Conta MaxMind | Gratuita, para a geolocalização: [maxmind.com/en/geolite2/signup](https://www.maxmind.com/en/geolite2/signup) |
 
@@ -268,6 +273,11 @@ Em **Regras de detecção** estão as 16 regras prontas. Os ajustes mais comuns:
 | Scanner de PHP/JSP | 3 em 5 min | **Desative** se o IIS hospeda algum site PHP |
 | Varredura de Exchange/OWA | 3 em 10 min | **Desative** se o servidor tem Exchange |
 | Excesso de 401/403 | desativada | Deixe desligada se usa autenticação Windows ou app com token |
+| Varredura de URLs sensíveis | 3 em 5 min | **Tire `/wp-json` e `/wp-includes` do padrão** se algum site seu roda WordPress |
+
+A regra **Varredura de URLs sensíveis** cobre WordPress, `/.env`, `/.git`, pastas de credenciais (`/.aws`, `/.docker`,
+`/.claude`, `/.config`, `/.boto`, `/.npmrc`, `/.kube` e outras), phpMyAdmin e actuator. Os scanners inventam nomes novos o
+tempo todo: confira as **URLs mais atacadas** no Dashboard e acrescente ao padrão o que ainda não estiver coberto.
 
 **Rotas que devolvem 404 de propósito** (ex.: uma API que responde 404 quando o registro não existe): edite a regra
 **Excesso de 404** e preencha **URLs ignoradas** com uma expressão regular. Ela é testada contra a URL e contra
@@ -392,6 +402,40 @@ excluídas; as do catálogo só podem ser desativadas.
 
 ---
 
+## Endpoints e IIS: desempenho dos sites
+
+Além de bloquear ataques, o serviço mede o que acontece no IIS. As telas **Endpoints** e **IIS** têm o mesmo filtro de
+período (Hoje, 7, 14, 30 ou 90 dias, conforme a tela) e atualizam sozinhas a cada 30 segundos.
+
+- **Endpoints**: o número de requisições de cada rota. Números, GUIDs e tokens viram `{id}` (`/api/os/123` →
+  `/api/os/{id}`), arquivos estáticos são agrupados e o endereço é sempre mostrado sem a query string. Filtre por site,
+  use **Somente com erro** e o campo **Filtrar endpoint**. Clique no título de uma coluna para ordenar (de novo para
+  inverter): Total, Sem erro, 4xx, 5xx, % erro, tempo médio e tempo máximo.
+- **IIS**: a tabela **Sites** mostra acessos, erros 5xx, tempo médio e a memória e a CPU do application pool do site. Todas as colunas a partir de **Acessos**
+  ordenam. **Pools do IIS** ordena por memória máxima, CPU máxima e número de processos. O gráfico mostra a memória do
+  pool escolhido (mínima, média e máxima) e as requisições dos sites desse pool.
+
+Como a coleta funciona e o que fica no banco:
+
+- A contagem começa **quando o serviço foi iniciado**: o histórico anterior dos logs não é contado.
+- A memória e a CPU vêm dos processos `w3wp.exe`, medidos a cada 30 segundos. Um pool só aparece **depois da primeira
+  requisição**, porque o IIS inicia o processo sob demanda.
+- Só agregados são gravados (uma linha por hora, site, método e endpoint; janelas de 5 minutos por pool), nunca uma linha
+  por requisição. A retenção é ajustável em **Configurações** e vem com 90 dias para endpoints e 30 dias para memória e CPU.
+- Se o log do IIS grava o hostname (`cs-host`), o nome do site nas requisições é o hostname. Se ele não bater com o nome do
+  site no IIS, a memória do pool deixa de aparecer na linha daquele site.
+
+---
+
+## Exportar para CSV
+
+Os botões **Exportar CSV** ficam em **Endpoints**, na tabela **Sites** da tela **IIS** e em **Bloqueios**. O arquivo traz
+**todas as linhas do filtro atual, na ordem da tabela** (sem o limite de linhas mostradas na tela; Bloqueios exporta até
+50.000). O separador é ponto e vírgula e a codificação é UTF-8 com BOM, então o Excel em português abre direto, com acentos.
+Os valores que começam com `=`, `+`, `-` ou `@` recebem um apóstrofo para o Excel não os executar como fórmula.
+
+---
+
 ## Testando a instalação
 
 ### Simular ataques sem precisar de um ataque real
@@ -506,7 +550,11 @@ sc.exe start CRSPIPS
 & $AppCmd start apppool /apppool.name:$Pool
 ```
 
-O banco é atualizado sozinho na inicialização. Regras e listas novas entram automaticamente, e as suas configurações são mantidas.
+Rode como **administrador** e só depois de parar o serviço e o pool; sem isso o `dotnet publish` falha com
+*access denied* (MSB3021). Se o Worker ou o Web não mudaram, não precisa publicar o outro.
+
+O banco é atualizado sozinho na inicialização. Regras e listas **novas** entram automaticamente e as suas configurações são
+mantidas. Mudanças nos padrões das regras que já existem no seu banco **não** são aplicadas: edite a regra em **Regras**.
 
 ---
 
@@ -544,6 +592,9 @@ sc.exe start CRSPIPS
 | Tela de primeiro acesso diz que só aceita localhost | Acesso não veio de `127.0.0.1` | Use o endereço `http://127.0.0.1:8085` **no próprio servidor** (passo 9) |
 | Nada aparece no Monitor | Nenhum log sendo lido | **Configurações → Leitura das fontes** e confira a pasta de logs do IIS |
 | Sem país, cidade e provedor | Bases GeoIP ausentes | **Configurações → Geolocalização**, confira o resultado do download |
+| Endpoints vazio | O serviço ainda não leu requisições novas | A contagem começa quando o serviço inicia. Confirme **Motor online** e a pasta de logs |
+| IIS sem memória de um pool | O pool ainda não recebeu requisição, ou o site aparece pelo hostname | O `w3wp` só existe depois da primeira requisição. Veja a observação em [Endpoints e IIS](#endpoints-e-iis-desempenho-dos-sites) |
+| `dotnet publish` com *access denied* (MSB3021) | PowerShell sem elevação ou serviço/pool ainda rodando | Abra como administrador e pare o serviço e o pool antes de publicar |
 | `Could not load file or assembly ...` | Publicação misturada com arquivos antigos | Pare serviço e pool, apague a pasta publicada e publique de novo |
 | Lista externa com erro | Servidor sem acesso à internet | Libere HTTPS de saída para `www.spamhaus.org` e `feeds.dshield.org` |
 

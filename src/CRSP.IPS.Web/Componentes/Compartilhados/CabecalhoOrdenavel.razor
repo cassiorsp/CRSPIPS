@@ -1,0 +1,16 @@
+@* Cabecalho de coluna clicavel: mostra a seta na coluna ordenada e um icone discreto nas demais. *@
+<th class="@Classe cabecalho-ordenavel" title="@Dica" aria-sort="@(Ativa ? (Decrescente ? "descending" : "ascending") : null)" @onclick="() => AoOrdenar.InvokeAsync(Coluna)">
+    @Texto<i class="bi ms-1 @(Ativa ? (Decrescente ? "bi-caret-down-fill" : "bi-caret-up-fill") : "bi-arrow-down-up icone-ordenar")"></i>
+</th>
+
+@code {
+    [Parameter, EditorRequired] public string Coluna { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Texto { get; set; } = string.Empty;
+    [Parameter] public string? Classe { get; set; }
+    [Parameter] public string? Dica { get; set; }
+    [Parameter] public string? Ordem { get; set; }
+    [Parameter] public bool Decrescente { get; set; }
+    [Parameter] public EventCallback<string> AoOrdenar { get; set; }
+
+    private bool Ativa => Ordem == Coluna;
+}

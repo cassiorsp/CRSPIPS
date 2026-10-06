@@ -3,6 +3,7 @@ using System;
 using CRSP.IPS.Infrastructure.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CRSP.IPS.Infrastructure.Persistencia.Migracoes
 {
     [DbContext(typeof(ContextoIps))]
-    partial class ContextoIpsModelSnapshot : ModelSnapshot
+    [Migration("20261001142833_MetricasIis")]
+    partial class MetricasIis
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
@@ -217,16 +220,6 @@ namespace CRSP.IPS.Infrastructure.Persistencia.Migracoes
 
                     b.Property<int>("RetencaoEventosDias")
                         .HasColumnType("INTEGER");
-
-                    b.Property<int>("RetencaoMetricasEndpointsDias")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(90);
-
-                    b.Property<int>("RetencaoMetricasProcessosDias")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(30);
 
                     b.Property<string>("TemposBloqueio")
                         .IsRequired()

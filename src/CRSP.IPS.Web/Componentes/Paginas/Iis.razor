@@ -1,0 +1,311 @@
+@page "/Iis"
+@implements IDisposable
+
+<Titulo Texto="@T["IIS"]" />
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="btn-group btn-group-sm filtro-periodo" role="group" aria-label="@T["Período"]">
+        @foreach (var opcao in Periodos)
+        {
+            <a class="btn @(opcao == _periodo ? "btn-primary" : "btn-outline-primary")" href="@Url(opcao, _pool)">@T[Exibicao.Rotulo(opcao)]</a>
+        }
+    </div>
+    <div class="ms-auto d-flex align-items-center gap-2 small text-body-secondary">
+        <span class="ponto-vivo @(_pausado ? "pausado" : "")"></span>
+        <span>@TextoAtualizacao</span>
+        <button class="btn btn-sm btn-link p-0 text-decoration-none" type="button" @onclick="() => _pausado = !_pausado">
+            <i class="bi @(_pausado ? "bi-play" : "bi-pause")"></i> @(_pausado ? T["Continuar"] : T["Pausar"])
+        </button>
+        <button class="btn btn-sm btn-link p-0 text-decoration-none" type="button" title="@T["Atualizar agora"]" @onclick="CarregarAsync">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+</div>
+
+@if (_painel is { } painel)
+{
+    @if (painel.Pools.Count == 0)
+    {
+        <div class="alert alert-info d-flex align-items-center gap-2">
+            <i class="bi bi-info-circle fs-5"></i>
+            <div>
+                @T["Ainda não há amostras dos processos do IIS no período."]
+                @T["O Worker mede a memória e a CPU dos processos w3wp a cada 30 segundos. Um application pool só aparece depois de receber a primeira requisição (o IIS inicia o processo sob demanda)."]
+                @if (!painel.WorkerOnline)
+                {
+                    <strong class="ms-1">@T["O Worker está offline."]</strong>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="card cartao mb-3">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+            <span>@T["Sites"] <span class="text-body-secondary small">(@_textoPeriodo)</span></span>
+            <a class="btn btn-sm btn-outline-secondary text-nowrap ms-auto" href="@UrlCsv" download>
+                <i class="bi bi-filetype-csv"></i> @T["Exportar CSV"]
+            </a>
+        </div>
+        <div class="table-responsive tabela-rolagem tabela-rolagem-baixa">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                <tr>
+                    <th>@T["Site"]</th>
+                    <th>@T["Application pool"]</th>
+                    <CabecalhoOrdenavel Coluna="acessos" Texto="@T["Acessos"]" Classe="text-end" Ordem="@_ordemSites" Decrescente="_decrescenteSites" AoOrdenar="OrdenarSites" />
+                    <CabecalhoOrdenavel Coluna="5xx" Texto="@T["Erros 5xx"]" Classe="text-end" Ordem="@_ordemSites" Decrescente="_decrescenteSites" AoOrdenar="OrdenarSites" />
+                    <CabecalhoOrdenavel Coluna="tempo" Texto="@T["Tempo médio"]" Classe="text-end" Ordem="@_ordemSites" Decrescente="_decrescenteSites" AoOrdenar="OrdenarSites" />
+                    <CabecalhoOrdenavel Coluna="memmin" Texto="@T["Memória mín."]" Classe="text-end" Dica="@T["Memória privada dos processos do pool no período."]" Ordem="@_ordemSites" Decrescente="_decrescenteSites" AoOrdenar="OrdenarSites" />
+                    <CabecalhoOrdenavel Coluna="memmedia" Texto="@T["Memória média"]" Classe="text-end" Ordem="@_ordemSites" Decrescente="_decrescenteSites" AoOrdenar="OrdenarSites" />
+                    <CabecalhoOrdenavel Coluna="memmax" Texto="@T["Memória máx."]" Classe="text-end" Ordem="@_ordemSites" Decrescente="_decrescenteSites" AoOrdenar="OrdenarSites" />
+                    <CabecalhoOrdenavel Coluna="cpu" Texto="@T["CPU média"]" Classe="text-end" Ordem="@_ordemSites" Decrescente="_decrescenteSites" AoOrdenar="OrdenarSites" />
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var site in OrdenacaoMetricas.Ordenar(painel.Sites, _ordemSites, _decrescenteSites))
+                {
+                    <tr class="@(site.Pool is not null && site.Pool.Equals(painel.PoolSelecionado, StringComparison.OrdinalIgnoreCase) ? "table-active" : "")">
+                        <td class="fw-semibold">@site.Site</td>
+                        <td class="small">
+                            @if (site.Pool is not null)
+                            {
+                                <a href="@Url(_periodo, site.Pool)">@site.Pool</a>
+                            }
+                            else
+                            {
+                                <span class="text-body-secondary">—</span>
+                            }
+                        </td>
+                        <td class="text-end">@site.Requisicoes.Total.ToString("N0")</td>
+                        <td class="text-end @(site.Requisicoes.ErroServidor > 0 ? "text-danger fw-semibold" : "text-body-secondary")">@site.Requisicoes.ErroServidor.ToString("N0")</td>
+                        <td class="text-end">@site.Requisicoes.TempoMedioMs.ToString("N0") ms</td>
+                        @if (site.Consumo is { } consumo)
+                        {
+                            <td class="text-end">@Exibicao.Memoria(consumo.MemoriaMinima)</td>
+                            <td class="text-end">@Exibicao.Memoria(consumo.MemoriaMedia)</td>
+                            <td class="text-end fw-semibold">@Exibicao.Memoria(consumo.MemoriaMaxima)</td>
+                            <td class="text-end">@consumo.CpuMedia.ToString("N1")%</td>
+                        }
+                        else
+                        {
+                            <td class="text-end text-body-secondary" colspan="4">—</td>
+                        }
+                    </tr>
+                }
+                @if (painel.Sites.Count == 0)
+                {
+                    <tr><td colspan="9" class="text-body-secondary">@T["Nenhum site no período."]</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (painel.PoolSelecionado is { } pool)
+    {
+        var resumo = painel.Pools.First(p => p.Pool.Equals(pool, StringComparison.OrdinalIgnoreCase));
+
+        <div class="row g-3 mb-3">
+            <div class="col-xl-8">
+                <div class="card cartao h-100">
+                    <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+                        <span>@T["Memória do pool"] <strong>@pool</strong> <span class="text-body-secondary small">(@_textoPeriodo)</span></span>
+                        <select class="form-select form-select-sm w-auto ms-auto" aria-label="@T["Application pool"]" value="@pool" @onchange="e => Navegacao.NavigateTo(Url(_periodo, (string?)e.Value))">
+                            @foreach (var opcao in painel.Pools)
+                            {
+                                <option value="@opcao.Pool">@opcao.Pool</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="card-body">
+                        <GraficoMemoria Rotulos="_grafico.Rotulos"
+                                        Minima="_grafico.Minima"
+                                        Media="_grafico.Media"
+                                        Maxima="_grafico.Maxima"
+                                        RotuloMinima="@T["Mínima"]"
+                                        RotuloMedia="@T["Média"]"
+                                        RotuloMaxima="@T["Máxima"]" />
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-4">
+                <div class="card cartao h-100">
+                    <div class="card-header">@T["Pools do IIS"]</div>
+                    <div class="table-responsive tabela-rolagem tabela-rolagem-baixa">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead><tr><th>@T["Application pool"]</th>
+                                <CabecalhoOrdenavel Coluna="memoria" Texto="@T["Memória máx."]" Classe="text-end" Ordem="@_ordemPools" Decrescente="_decrescentePools" AoOrdenar="OrdenarPools" />
+                                <CabecalhoOrdenavel Coluna="cpu" Texto="@T["CPU máx."]" Classe="text-end" Ordem="@_ordemPools" Decrescente="_decrescentePools" AoOrdenar="OrdenarPools" />
+                                <CabecalhoOrdenavel Coluna="processos" Texto="@T["Processos"]" Classe="text-end" Ordem="@_ordemPools" Decrescente="_decrescentePools" AoOrdenar="OrdenarPools" />
+                            </tr></thead>
+                            <tbody>
+                            @foreach (var linha in OrdenacaoMetricas.Ordenar(painel.Pools, _ordemPools, _decrescentePools))
+                            {
+                                <tr class="@(linha.Pool.Equals(pool, StringComparison.OrdinalIgnoreCase) ? "table-active" : "")">
+                                    <td><a href="@Url(_periodo, linha.Pool)">@linha.Pool</a></td>
+                                    <td class="text-end">@Exibicao.Memoria(linha.MemoriaMaxima)</td>
+                                    <td class="text-end">@linha.CpuMaxima.ToString("N0")%</td>
+                                    <td class="text-end">@linha.ProcessosMaximo</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer small text-body-secondary">
+                        @T["Último sinal: {0}", Exibicao.DataHora(resumo.UltimaAmostraUtc)]
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (painel.SerieRequisicoes.Count > 0)
+        {
+            <div class="card cartao">
+                <div class="card-header">@T["Requisições dos sites do pool"] <strong>@pool</strong> <span class="text-body-secondary small">(@_textoPeriodo)</span></div>
+                <div class="card-body">
+                    <GraficoRequisicoes Rotulos="_grafico.RotulosRequisicoes"
+                                        Sucesso="_grafico.Sucesso"
+                                        ErroCliente="_grafico.ErroCliente"
+                                        ErroServidor="_grafico.ErroServidor"
+                                        RotuloSucesso="@T["Sem erro"]"
+                                        RotuloErroCliente="@T["Erros do cliente (4xx)"]"
+                                        RotuloErroServidor="@T["Erros do servidor (5xx)"]" />
+                </div>
+            </div>
+        }
+    }
+}
+
+@code {
+    private static readonly PeriodoDashboard[] Periodos = [PeriodoDashboard.Hoje, PeriodoDashboard.Dias7, PeriodoDashboard.Dias14, PeriodoDashboard.Dias30];
+    private static readonly TimeSpan IntervaloAtualizacao = TimeSpan.FromSeconds(30);
+    private const double BytesPorMb = 1024d * 1024d;
+
+    [SupplyParameterFromQuery(Name = "periodo")]
+    private string? PeriodoTexto { get; set; }
+
+    [SupplyParameterFromQuery(Name = "pool")]
+    private string? PoolParametro { get; set; }
+
+    private PeriodoDashboard _periodo = PeriodoDashboard.Hoje;
+    private string? _pool;
+    private PainelIis? _painel;
+    private DadosGrafico _grafico = new([], [], [], [], [], [], [], []);
+    private string _textoPeriodo = string.Empty;
+    private DateTime _ultimaAtualizacao = DateTime.UtcNow;
+    private bool _pausado;
+    private string _ordemSites = OrdenacaoMetricas.SitesPadrao;
+    private bool _decrescenteSites = true;
+    private string _ordemPools = OrdenacaoMetricas.PoolsPadrao;
+    private bool _decrescentePools = true;
+    private readonly CancellationTokenSource _cancelamento = new();
+
+    private void OrdenarSites(string coluna)
+    {
+        _decrescenteSites = _ordemSites != coluna || !_decrescenteSites;
+        _ordemSites = coluna;
+    }
+
+    private void OrdenarPools(string coluna)
+    {
+        _decrescentePools = _ordemPools != coluna || !_decrescentePools;
+        _ordemPools = coluna;
+    }
+
+    private string UrlCsv => Navegacao.GetUriWithQueryParameters("/Iis/sites.csv", new Dictionary<string, object?>
+    {
+        ["periodo"] = Exibicao.Rotulo(_periodo).ToLowerInvariant(),
+        ["ordem"] = _ordemSites,
+        ["crescente"] = _decrescenteSites ? null : true
+    });
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _periodo = Periodos.FirstOrDefault(p => Exibicao.Rotulo(p).Equals(PeriodoTexto, StringComparison.OrdinalIgnoreCase), PeriodoDashboard.Hoje);
+        _pool = string.IsNullOrWhiteSpace(PoolParametro) ? null : PoolParametro;
+        _textoPeriodo = T[Exibicao.DescreverPeriodo(_periodo), (int)_periodo];
+        await CarregarAsync();
+    }
+
+    protected override void OnAfterRender(bool primeiraRenderizacao)
+    {
+        if (primeiraRenderizacao && RendererInfo.IsInteractive)
+            _ = AtualizarPeriodicamenteAsync();
+    }
+
+    private async Task CarregarAsync()
+    {
+        var painel = await Servicos.ExecutarAsync((ServicoMetricasPainel s) => s.ObterIisAsync(_periodo, _pool));
+        _painel = painel;
+
+        string Rotulo(DateTime inicio) => painel.SerieEmJanelas
+            ? inicio.ToString("HH:mm", CultureInfo.CurrentCulture)
+            : Exibicao.RotuloSerie(inicio, painel.Granularidade);
+
+        _grafico = new DadosGrafico(
+            painel.SerieMemoria.Select(p => Rotulo(p.Inicio)).ToList(),
+            painel.SerieMemoria.Select(p => p.Minima / BytesPorMb).ToList(),
+            painel.SerieMemoria.Select(p => p.Media / BytesPorMb).ToList(),
+            painel.SerieMemoria.Select(p => p.Maxima / BytesPorMb).ToList(),
+            painel.SerieRequisicoes.Select(p => Exibicao.RotuloSerie(p.Inicio, painel.Granularidade)).ToList(),
+            painel.SerieRequisicoes.Select(p => p.Sucesso).ToList(),
+            painel.SerieRequisicoes.Select(p => p.ErroCliente).ToList(),
+            painel.SerieRequisicoes.Select(p => p.ErroServidor).ToList());
+        _ultimaAtualizacao = DateTime.UtcNow;
+    }
+
+    private sealed record DadosGrafico(
+        IReadOnlyList<string> Rotulos,
+        IReadOnlyList<double> Minima,
+        IReadOnlyList<double> Media,
+        IReadOnlyList<double> Maxima,
+        IReadOnlyList<string> RotulosRequisicoes,
+        IReadOnlyList<int> Sucesso,
+        IReadOnlyList<int> ErroCliente,
+        IReadOnlyList<int> ErroServidor);
+
+    private async Task AtualizarPeriodicamenteAsync()
+    {
+        using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        try
+        {
+            while (await temporizador.WaitForNextTickAsync(_cancelamento.Token))
+            {
+                await InvokeAsync(async () =>
+                {
+                    if (!_pausado && DateTime.UtcNow - _ultimaAtualizacao >= IntervaloAtualizacao)
+                        await CarregarAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private string TextoAtualizacao
+    {
+        get
+        {
+            var segundos = (int)(DateTime.UtcNow - _ultimaAtualizacao).TotalSeconds;
+            return segundos < 5 ? T["Atualizado agora"] : T["Atualizado há {0} s", segundos];
+        }
+    }
+
+    private static string Url(PeriodoDashboard periodo, string? pool)
+    {
+        var parametros = new List<string>();
+        if (periodo != PeriodoDashboard.Hoje)
+            parametros.Add($"periodo={Exibicao.Rotulo(periodo).ToLowerInvariant()}");
+        if (!string.IsNullOrEmpty(pool))
+            parametros.Add($"pool={Uri.EscapeDataString(pool)}");
+        return parametros.Count == 0 ? "/Iis" : "/Iis?" + string.Join('&', parametros);
+    }
+
+    public void Dispose()
+    {
+        _cancelamento.Cancel();
+        _cancelamento.Dispose();
+    }
+}

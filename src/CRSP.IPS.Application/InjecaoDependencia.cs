@@ -20,6 +20,7 @@ public static class InjecaoDependencia
         services.AddScoped<ServicoGeoIp>();
         services.AddScoped<ServicoHistorico>();
         services.AddScoped<ServicoListasExternas>();
+        services.AddScoped<ServicoMetricasPainel>();
         return services;
     }
 
@@ -36,6 +37,7 @@ public static class InjecaoDependencia
         services.AddScoped<ServicoSincronizacaoFirewall>();
         services.AddScoped<ServicoPoliticaPaisesFirewall>();
         services.AddScoped<ServicoManutencao>();
+        services.AddScoped<ServicoMetricasIis>();
         services.AddScoped<ServicoAtualizacaoGeo>();
         services.AddScoped<ServicoCompletarLocalizacao>();
         return services;

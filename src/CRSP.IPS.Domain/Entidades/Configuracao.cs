@@ -18,6 +18,8 @@ public class Configuracao
     public string CaminhoHttpErr { get; private set; } = @"C:\Windows\System32\LogFiles\HTTPERR";
     public bool MonitorarEventosWindows { get; private set; } = true;
     public int RetencaoEventosDias { get; private set; } = 30;
+    public int RetencaoMetricasEndpointsDias { get; private set; } = 90;
+    public int RetencaoMetricasProcessosDias { get; private set; } = 30;
     public ModoPoliticaPaises ModoPaises { get; private set; } = ModoPoliticaPaises.Desativada;
     public AplicacaoPoliticaPaises AplicacaoPaises { get; private set; } = AplicacaoPoliticaPaises.ReativaSuspeitos;
     public string PaisesPolitica { get; private set; } = string.Empty;
@@ -79,6 +81,16 @@ public class Configuracao
         CaminhoHttpErr = caminhoHttpErr.Trim();
         MonitorarEventosWindows = monitorarEventosWindows;
         RetencaoEventosDias = retencaoEventosDias;
+        RegistrarAlteracao(agoraUtc, usuario);
+    }
+
+    public void AlterarRetencaoMetricas(int endpointsDias, int processosDias, DateTime agoraUtc, string usuario)
+    {
+        if (endpointsDias is < 1 or > 365 || processosDias is < 1 or > 365)
+            throw new ArgumentException("A retenção das métricas deve estar entre 1 e 365 dias.");
+
+        RetencaoMetricasEndpointsDias = endpointsDias;
+        RetencaoMetricasProcessosDias = processosDias;
         RegistrarAlteracao(agoraUtc, usuario);
     }
 
